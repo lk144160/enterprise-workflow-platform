@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.stock.mapper.BizStockOrderItemMapper">
+
+    <resultMap type="BizStockOrderItem" id="BizStockOrderItemResult">
+        <result property="itemId"       column="item_id"       />
+        <result property="orderId"      column="order_id"      />
+        <result property="materialId"   column="material_id"   />
+        <result property="quantity"     column="quantity"      />
+        <result property="unitPrice"    column="unit_price"    />
+        <result property="amount"       column="amount"        />
+        <result property="materialNo"   column="material_no"   />
+        <result property="materialName" column="material_name" />
+        <result property="spec"         column="spec"          />
+        <result property="unit"         column="unit"          />
+    </resultMap>
+
+    <select id="selectItemsByOrderId" parameterType="Long" resultMap="BizStockOrderItemResult">
+        select i.item_id, i.order_id, i.material_id, i.quantity, i.unit_price, i.amount,
+               m.material_no, m.material_name, m.spec, m.unit
+        from biz_stock_order_item i
+        left join biz_material m on m.material_id = i.material_id
+        where i.order_id = #{orderId}
+        order by i.item_id
+    </select>
+
+    <insert id="batchInsert">
+        insert into biz_stock_order_item (order_id, material_id, quantity, unit_price, amount)
+        values
+        <foreach item="item" collection="list" separator=",">
+            (#{item.orderId}, #{item.materialId}, #{item.quantity}, #{item.unitPrice}, #{item.amount})
+        </foreach>
+    </insert>
+
+    <delete id="deleteByOrderId" parameterType="Long">
+        delete from biz_stock_order_item where order_id = #{orderId}
+    </delete>
+</mapper>

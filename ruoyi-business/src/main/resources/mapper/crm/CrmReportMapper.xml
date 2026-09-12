@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.crm.mapper.CrmReportMapper">
+
+    <resultMap type="CrmCustomer" id="ReportCustomerResult">
+        <result property="customerId"     column="customer_id"     />
+        <result property="customerName"   column="customer_name"   />
+        <result property="phone"          column="phone"           />
+        <result property="source"         column="source"          />
+        <result property="estate"         column="estate"          />
+        <result property="houseType"      column="house_type"      />
+        <result property="area"           column="area"            />
+        <result property="budget"         column="budget"          />
+        <result property="intentionLevel" column="intention_level" />
+        <result property="status"          column="status"           />
+        <result property="createTime"      column="create_time"      />
+        <result property="ownerName"       column="owner_name"      />
+    </resultMap>
+
+    <resultMap type="CrmFollowRecord" id="ReportFollowResult">
+        <result property="recordId"       column="record_id"       />
+        <result property="customerId"     column="customer_id"     />
+        <result property="followType"     column="follow_type"     />
+        <result property="content"        column="content"         />
+        <result property="followTime"     column="follow_time"     />
+        <result property="createBy"       column="create_by"       />
+        <result property="customerName"   column="customer_name"   />
+        <result property="phone"          column="phone"           />
+        <result property="customerEstate" column="estate"          />
+        <result property="createByName"   column="create_by_name"  />
+    </resultMap>
+
+    <resultMap type="BizContract" id="ReportContractResult">
+        <result property="contractId"     column="contract_id"     />
+        <result property="contractNo"     column="contract_no"     />
+        <result property="contractAmount" column="contract_amount" />
+        <result property="paidAmount"     column="paid_amount"     />
+        <result property="signDate"       column="sign_date"       />
+        <result property="status"         column="status"          />
+        <result property="customerName"   column="customer_name"   />
+        <result property="customerPhone"  column="phone"           />
+        <result property="estate"         column="estate"          />
+        <result property="ownerUserName"  column="owner_user_name" />
+    </resultMap>
+
+    <sql id="customerTimeRange">
+        and c.create_time &gt;= concat(#{beginTime}, ' 00:00:00')
+        and c.create_time &lt;= concat(#{endTime}, ' 23:59:59')
+    </sql>
+
+    <sql id="followTimeRange">
+        and r.follow_time &gt;= concat(#{beginTime}, ' 00:00:00')
+        and r.follow_time &lt;= concat(#{endTime}, ' 23:59:59')
+    </sql>
+
+    <sql id="quoteTimeRange">
+        and q.create_time &gt;= concat(#{beginTime}, ' 00:00:00')
+        and q.create_time &lt;= concat(#{endTime}, ' 23:59:59')
+    </sql>
+
+    <sql id="contractTimeRange">
+        and t.sign_date &gt;= concat(#{beginTime}, ' 00:00:00')
+        and t.sign_date &lt;= concat(#{endTime}, ' 23:59:59')
+    </sql>
+
+    <!-- 业务员过滤条件（客户类查询：直接匹配录入的业务员姓名） -->
+    <sql id="ownerFilter">
+        <if test="ownerName != null and ownerName != ''"> and c.owner_name like concat('%', #{ownerName}, '%')</if>
+    </sql>
+
+    <select id="countNewCustomers" parameterType="CrmReportQuery" resultType="int">
+        select count(1) from crm_customer c
+        <where>
+            <include refid="customerTimeRange"/>
+            <include refid="ownerFilter"/>
+        </where>
+    </select>
+
+    <select id="countFollows" parameterType="CrmReportQuery" resultType="int">
+        select count(1) from crm_follow_record r
+        left join crm_customer c on c.customer_id = r.customer_id
+        <where>
+            <include refid="followTimeRange"/>
+            <include refid="ownerFilter"/>
+        </where>
+    </select>
+
+    <select id="countVisits" parameterType="CrmReportQuery" resultType="int">
+        select count(1) from crm_follow_record r
+        left join crm_customer c on c.customer_id = r.customer_id
+        <where>
+            <include refid="followTimeRange"/>
+            and r.follow_type = '3'
+            <include refid="ownerFilter"/>
+        </where>
+    </select>
+
+    <select id="countQuotes" parameterType="CrmReportQuery" resultType="int">
+        select count(1) from biz_quote q
+        left join crm_customer c on c.customer_id = q.customer_id
+        <where>
+            <include refid="quoteTimeRange"/>
+            <include refid="ownerFilter"/>
+        </where>
+    </select>
+
+    <!-- 合同类查询：按业务员姓名匹配合同负责人的昵称 -->
+    <sql id="contractOwnerFilter">
+        <if test="ownerName != null and ownerName != ''">
+            and t.owner_user_id in (select user_id from sys_user where nick_name like concat('%', #{ownerName}, '%'))
+        </if>
+    </sql>
+
+    <select id="countContracts" parameterType="CrmReportQuery" resultType="int">
+        select count(1) from biz_contract t
+        <where>
+            <include refid="contractTimeRange"/>
+            <include refid="contractOwnerFilter"/>
+        </where>
+    </select>
+
+    <select id="sumContractAmount" parameterType="CrmReportQuery" resultType="BigDecimal">
+        select ifnull(sum(t.contract_amount), 0) from biz_contract t
+        <where>
+            <include refid="contractTimeRange"/>
+            <include refid="contractOwnerFilter"/>
+        </where>
+    </select>
+
+    <select id="selectCustomerDetails" parameterType="CrmReportQuery" resultMap="ReportCustomerResult">
+        select c.customer_id, c.customer_name, c.phone, c.source, c.estate, c.house_type, c.area, c.budget,
+               c.intention_level, c.status, c.owner_name, c.create_time
+        from crm_customer c
+        <where>
+            <include refid="customerTimeRange"/>
+            <include refid="ownerFilter"/>
+        </where>
+        order by c.create_time desc
+    </select>
+
+    <select id="selectFollowDetails" parameterType="CrmReportQuery" resultMap="ReportFollowResult">
+        select r.record_id, r.customer_id, r.follow_type, r.content, r.follow_time, r.create_by,
+               c.customer_name, c.phone, c.estate,
+               u.nick_name as create_by_name
+        from crm_follow_record r
+        left join crm_customer c on c.customer_id = r.customer_id
+        left join sys_user u on u.user_name = r.create_by
+        <where>
+            <include refid="followTimeRange"/>
+            <include refid="ownerFilter"/>
+        </where>
+        order by r.follow_time desc
+    </select>
+
+    <select id="selectContractDetails" parameterType="CrmReportQuery" resultMap="ReportContractResult">
+        select t.contract_id, t.contract_no, t.contract_amount, t.paid_amount, t.sign_date, t.status,
+               c.customer_name, c.phone, c.estate,
+               u.nick_name as owner_user_name
+        from biz_contract t
+        left join crm_customer c on c.customer_id = t.customer_id
+        left join sys_user u on u.user_id = t.owner_user_id
+        <where>
+            <include refid="contractTimeRange"/>
+            <include refid="contractOwnerFilter"/>
+        </where>
+        order by t.sign_date desc
+    </select>
+</mapper>

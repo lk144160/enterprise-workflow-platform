@@ -1,0 +1,14 @@
+# 生产环境覆盖配置（start.bat 通过 --spring.profiles.active=druid,prod 激活）
+
+# 日志级别（开发用 debug，生产用 info 减少日志量）
+logging:
+  level:
+    com.ruoyi: info
+    org.springframework: warn
+
+# 关闭热部署（生产环境不需要）
+spring:
+  devtools:
+    restart:
+      enabled: false
+    add-properties: false

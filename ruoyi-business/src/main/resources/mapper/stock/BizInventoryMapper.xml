@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.stock.mapper.BizInventoryMapper">
+
+    <resultMap type="BizInventory" id="BizInventoryResult">
+        <result property="id"           column="id"           />
+        <result property="materialId"   column="material_id"  />
+        <result property="quantity"     column="quantity"     />
+        <result property="avgPrice"     column="avg_price"    />
+        <result property="updateTime"   column="update_time"  />
+        <result property="materialNo"   column="material_no"  />
+        <result property="materialName" column="material_name"/>
+        <result property="spec"         column="spec"         />
+        <result property="unit"         column="unit"         />
+        <result property="safetyStock"  column="safety_stock" />
+    </resultMap>
+
+    <sql id="selectVo">
+        select i.id, i.material_id, i.quantity, i.avg_price, i.update_time,
+               m.material_no, m.material_name, m.spec, m.unit, m.safety_stock
+        from biz_inventory i
+        left join biz_material m on m.material_id = i.material_id
+    </sql>
+
+    <select id="selectByMaterialId" parameterType="Long" resultMap="BizInventoryResult">
+        <include refid="selectVo"/>
+        where i.material_id = #{materialId}
+    </select>
+
+    <select id="selectBizInventoryList" parameterType="BizInventory" resultMap="BizInventoryResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="materialId != null">AND i.material_id = #{materialId}</if>
+            <if test="materialNo != null and materialNo != ''">AND m.material_no like concat('%', #{materialNo}, '%')</if>
+            <if test="materialName != null and materialName != ''">AND m.material_name like concat('%', #{materialName}, '%')</if>
+            <if test="spec != null and spec != ''">AND m.spec like concat('%', #{spec}, '%')</if>
+        </where>
+        order by i.material_id
+    </select>
+
+    <select id="selectBelowSafetyList" resultMap="BizInventoryResult">
+        <include refid="selectVo"/>
+        where m.status = '0' and i.quantity &lt;= m.safety_stock
+        order by i.quantity
+    </select>
+
+    <insert id="insertBizInventory" parameterType="BizInventory">
+        insert into biz_inventory (material_id, quantity, avg_price, update_time)
+        values (#{materialId}, #{quantity}, #{avgPrice}, sysdate())
+    </insert>
+
+    <update id="updateBizInventory" parameterType="BizInventory">
+        update biz_inventory
+        set quantity = #{quantity}, avg_price = #{avgPrice}, update_time = sysdate()
+        where material_id = #{materialId}
+    </update>
+
+    <update id="deductQuantity">
+        update biz_inventory
+        set quantity = quantity - #{quantity}, update_time = sysdate()
+        where material_id = #{materialId} and quantity &gt;= #{quantity}
+    </update>
+</mapper>

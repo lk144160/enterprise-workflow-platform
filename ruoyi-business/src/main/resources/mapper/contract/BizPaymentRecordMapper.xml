@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.contract.mapper.BizPaymentRecordMapper">
+
+    <resultMap type="BizPaymentRecord" id="BizPaymentRecordResult">
+        <result property="paymentId"          column="payment_id"          />
+        <result property="contractId"         column="contract_id"         />
+        <result property="planId"             column="plan_id"             />
+        <result property="periodNo"           column="period_no"           />
+        <result property="amount"             column="amount"              />
+        <result property="payType"            column="pay_type"            />
+        <result property="payTime"            column="pay_time"            />
+        <result property="voucherUrl"         column="voucher_url"         />
+        <result property="deviationNote"      column="deviation_note"      />
+        <result property="operatorId"         column="operator_id"         />
+        <result property="reverseOfPaymentId" column="reverse_of_payment_id"/>
+        <result property="reverseReason"      column="reverse_reason"      />
+        <result property="createBy"           column="create_by"           />
+        <result property="createTime"         column="create_time"         />
+        <result property="remark"             column="remark"              />
+        <result property="contractNo"         column="contract_no"         />
+        <result property="customerName"       column="customer_name"       />
+        <result property="periodName"         column="period_name"         />
+        <result property="operatorName"       column="operator_name"       />
+    </resultMap>
+
+    <sql id="selectVo">
+        select r.payment_id, r.contract_id, r.plan_id, r.period_no, r.amount, r.pay_type, r.pay_time,
+               r.voucher_url, r.deviation_note, r.operator_id, r.reverse_of_payment_id, r.reverse_reason,
+               r.create_by, r.create_time, r.remark,
+               ct.contract_no, c.customer_name, p.period_name, u.nick_name as operator_name
+        from biz_payment_record r
+        left join biz_contract ct on ct.contract_id = r.contract_id
+        left join crm_customer c on c.customer_id = ct.customer_id
+        left join biz_payment_plan p on p.plan_id = r.plan_id
+        left join sys_user u on u.user_id = r.operator_id
+    </sql>
+
+    <select id="selectBizPaymentRecordById" parameterType="Long" resultMap="BizPaymentRecordResult">
+        <include refid="selectVo"/>
+        where r.payment_id = #{paymentId}
+    </select>
+
+    <select id="selectBizPaymentRecordList" parameterType="BizPaymentRecord" resultMap="BizPaymentRecordResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="contractId != null">AND r.contract_id = #{contractId}</if>
+            <if test="contractNo != null and contractNo != ''">AND ct.contract_no like concat('%', #{contractNo}, '%')</if>
+            <if test="customerName != null and customerName != ''">AND c.customer_name like concat('%', #{customerName}, '%')</if>
+            <if test="planId != null">AND r.plan_id = #{planId}</if>
+            <if test="periodNo != null">AND r.period_no = #{periodNo}</if>
+            <if test="payType != null and payType != ''">AND r.pay_type = #{payType}</if>
+        </where>
+        order by r.payment_id desc
+    </select>
+
+    <select id="selectRecordsByContractId" parameterType="Long" resultMap="BizPaymentRecordResult">
+        <include refid="selectVo"/>
+        where r.contract_id = #{contractId}
+        order by r.pay_time desc, r.payment_id desc
+    </select>
+
+    <insert id="insertBizPaymentRecord" parameterType="BizPaymentRecord" useGeneratedKeys="true" keyProperty="paymentId">
+        insert into biz_payment_record (contract_id, plan_id, period_no, amount, pay_type, pay_time, voucher_url,
+            deviation_note, operator_id, reverse_of_payment_id, reverse_reason, create_by, create_time, remark)
+        values (#{contractId}, #{planId}, #{periodNo}, #{amount}, #{payType}, #{payTime}, #{voucherUrl},
+            #{deviationNote}, #{operatorId}, #{reverseOfPaymentId}, #{reverseReason}, #{createBy}, sysdate(), #{remark})
+    </insert>
+</mapper>

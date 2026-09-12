@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.design.mapper.BizDisclosureMapper">
+
+    <resultMap type="BizDisclosure" id="BizDisclosureResult">
+        <result property="disclosureId"      column="disclosure_id"      />
+        <result property="disclosureNo"      column="disclosure_no"      />
+        <result property="contractId"        column="contract_id"        />
+        <result property="content"           column="content"            />
+        <result property="meetingDate"       column="meeting_date"       />
+        <result property="attendees"         column="attendees"          />
+        <result property="externalAttendees" column="external_attendees" />
+        <result property="status"            column="status"             />
+        <result property="confirmTime"       column="confirm_time"       />
+        <result property="deptId"            column="dept_id"            />
+        <result property="createBy"          column="create_by"          />
+        <result property="createTime"        column="create_time"        />
+        <result property="updateBy"          column="update_by"          />
+        <result property="updateTime"        column="update_time"        />
+        <result property="remark"            column="remark"             />
+        <result property="contractNo"        column="contract_no"        />
+        <result property="contractAmount"    column="contract_amount"    />
+        <result property="customerName"      column="customer_name"      />
+    </resultMap>
+
+    <sql id="selectVo">
+        select d.disclosure_id, d.disclosure_no, d.contract_id, d.content, d.meeting_date,
+               d.attendees, d.external_attendees, d.status, d.confirm_time, d.dept_id,
+               d.create_by, d.create_time, d.update_by, d.update_time, d.remark,
+               ct.contract_no, ct.contract_amount, c.customer_name
+        from biz_disclosure d
+        left join biz_contract ct on ct.contract_id = d.contract_id
+        left join crm_customer c on c.customer_id = ct.customer_id
+    </sql>
+
+    <select id="selectBizDisclosureById" parameterType="Long" resultMap="BizDisclosureResult">
+        <include refid="selectVo"/>
+        where d.disclosure_id = #{disclosureId}
+    </select>
+
+    <select id="selectBizDisclosureList" parameterType="BizDisclosure" resultMap="BizDisclosureResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="disclosureNo != null and disclosureNo != ''">AND d.disclosure_no like concat('%', #{disclosureNo}, '%')</if>
+            <if test="contractId != null">AND d.contract_id = #{contractId}</if>
+            <if test="contractNo != null and contractNo != ''">AND ct.contract_no like concat('%', #{contractNo}, '%')</if>
+            <if test="customerName != null and customerName != ''">AND c.customer_name like concat('%', #{customerName}, '%')</if>
+            <if test="status != null and status != ''">AND d.status = #{status}</if>
+        </where>
+        order by d.disclosure_id desc
+    </select>
+
+    <insert id="insertBizDisclosure" parameterType="BizDisclosure" useGeneratedKeys="true" keyProperty="disclosureId">
+        insert into biz_disclosure (disclosure_no, contract_id, content, meeting_date, attendees,
+            external_attendees, status, dept_id, create_by, create_time, remark)
+        values (#{disclosureNo}, #{contractId}, #{content}, #{meetingDate}, #{attendees},
+            #{externalAttendees}, #{status}, #{deptId}, #{createBy}, sysdate(), #{remark})
+    </insert>
+
+    <update id="updateBizDisclosure" parameterType="BizDisclosure">
+        update biz_disclosure
+        <set>
+            <if test="content != null and content != ''">content = #{content},</if>
+            <if test="meetingDate != null">meeting_date = #{meetingDate},</if>
+            <if test="attendees != null">attendees = #{attendees},</if>
+            <if test="externalAttendees != null">external_attendees = #{externalAttendees},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="confirmTime != null">confirm_time = #{confirmTime},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where disclosure_id = #{disclosureId}
+    </update>
+
+    <delete id="deleteBizDisclosureByIds" parameterType="Long">
+        delete from biz_disclosure where disclosure_id in
+        <foreach item="disclosureId" collection="array" open="(" separator="," close=")">
+            #{disclosureId}
+        </foreach>
+    </delete>
+</mapper>

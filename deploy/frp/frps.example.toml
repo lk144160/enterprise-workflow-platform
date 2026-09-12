@@ -1,0 +1,21 @@
+# ===================================================
+# frp 服务端配置示例
+# 复制为 frps.toml 后再填入实际值；frps.toml 已被 Git 忽略。
+# ===================================================
+
+# frp 通信端口（客户端连接此端口）
+bindPort = 7000
+
+# 仪表盘（可选）
+webServerAddr = "0.0.0.0"
+webServerPort = 7500
+webServerUser = "admin"
+webServerPassword = "CHANGE_ME"
+
+# 认证令牌（客户端必须一致）
+auth.token = "CHANGE_ME"
+
+# 允许客户端使用的远程端口
+allowPorts = [
+  { start = 80, end = 80 }
+]

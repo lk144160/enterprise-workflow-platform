@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.crm.mapper.CrmFollowRecordMapper">
+
+    <resultMap type="CrmFollowRecord" id="CrmFollowRecordResult">
+        <result property="recordId"        column="record_id"        />
+        <result property="customerId"      column="customer_id"      />
+        <result property="followType"      column="follow_type"      />
+        <result property="content"         column="content"          />
+        <result property="followTime"      column="follow_time"      />
+        <result property="nextFollowTime"  column="next_follow_time" />
+        <result property="visitCount"      column="visit_count"      />
+        <result property="companion"       column="companion"        />
+        <result property="receptionUserId" column="reception_user_id"/>
+        <result property="visitPurpose"    column="visit_purpose"    />
+        <result property="feedback"        column="feedback"         />
+        <result property="createBy"        column="create_by"        />
+        <result property="createTime"      column="create_time"      />
+        <result property="remark"          column="remark"           />
+        <result property="createByName"    column="create_by_name"   />
+        <result property="receptionUserName" column="reception_user_name" />
+        <result property="customerName"    column="customer_name"    />
+        <result property="phone"           column="phone"            />
+    </resultMap>
+
+    <select id="selectCrmFollowRecordById" parameterType="Long" resultMap="CrmFollowRecordResult">
+        select r.record_id, r.customer_id, r.follow_type, r.content, r.follow_time, r.next_follow_time,
+               r.visit_count, r.companion, r.reception_user_id, r.visit_purpose, r.feedback,
+               r.create_by, r.create_time, r.remark, u.nick_name as create_by_name, ru.nick_name as reception_user_name
+        from crm_follow_record r
+        left join sys_user u on u.user_name = r.create_by
+        left join sys_user ru on ru.user_id = r.reception_user_id
+        where r.record_id = #{recordId}
+    </select>
+
+    <select id="selectRecordListByCustomerId" parameterType="Long" resultMap="CrmFollowRecordResult">
+        select r.record_id, r.customer_id, r.follow_type, r.content, r.follow_time, r.next_follow_time,
+               r.visit_count, r.companion, r.reception_user_id, r.visit_purpose, r.feedback,
+               r.create_by, r.create_time, r.remark, u.nick_name as create_by_name, ru.nick_name as reception_user_name,
+               case when r.follow_type = '3' then (
+                   select count(*) from crm_follow_record r2
+                   where r2.customer_id = r.customer_id and r2.follow_type = '3'
+                     and (r2.follow_time &lt; r.follow_time or (r2.follow_time = r.follow_time and r2.record_id &lt;= r.record_id))
+               ) else null end as visit_seq
+        from crm_follow_record r
+        left join sys_user u on u.user_name = r.create_by
+        left join sys_user ru on ru.user_id = r.reception_user_id
+        where r.customer_id = #{customerId}
+        order by r.follow_time desc
+    </select>
+
+    <select id="selectFollowRecordList" parameterType="CrmFollowRecord" resultMap="CrmFollowRecordResult">
+        select r.record_id, r.customer_id, r.follow_type, r.content, r.follow_time, r.next_follow_time,
+               r.visit_count, r.companion, r.reception_user_id, r.visit_purpose, r.feedback,
+               r.create_by, r.create_time, r.remark, u.nick_name as create_by_name, ru.nick_name as reception_user_name,
+               c.customer_name, c.phone
+        from crm_follow_record r
+        left join sys_user u on u.user_name = r.create_by
+        left join sys_user ru on ru.user_id = r.reception_user_id
+        left join crm_customer c on c.customer_id = r.customer_id
+        <where>
+            <if test="customerId != null">
+                and r.customer_id = #{customerId}
+            </if>
+            <if test="followType != null and followType != ''">
+                and r.follow_type = #{followType}
+            </if>
+            <if test="customerName != null and customerName != ''">
+                and c.customer_name like concat('%', #{customerName}, '%')
+            </if>
+            <if test="params != null and params.beginTime != null and params.beginTime != ''">
+                and r.follow_time &gt;= #{params.beginTime}
+            </if>
+            <if test="params != null and params.endTime != null and params.endTime != ''">
+                and r.follow_time &lt;= #{params.endTime}
+            </if>
+        </where>
+        order by r.follow_time desc
+    </select>
+
+    <insert id="insertCrmFollowRecord" parameterType="CrmFollowRecord" useGeneratedKeys="true" keyProperty="recordId">
+        insert into crm_follow_record (customer_id, follow_type, content, follow_time, next_follow_time,
+                                       visit_count, companion, reception_user_id, visit_purpose, feedback,
+                                       create_by, create_time, remark)
+        values (#{customerId}, #{followType}, #{content}, #{followTime}, #{nextFollowTime},
+                #{visitCount}, #{companion}, #{receptionUserId}, #{visitPurpose}, #{feedback},
+                #{createBy}, sysdate(), #{remark})
+    </insert>
+
+    <delete id="deleteRecordById" parameterType="Long">
+        delete from crm_follow_record where record_id = #{recordId}
+    </delete>
+</mapper>

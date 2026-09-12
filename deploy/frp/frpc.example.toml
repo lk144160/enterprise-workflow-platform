@@ -1,0 +1,19 @@
+# ===================================================
+# frp 客户端配置示例
+# 复制为 frpc.toml 后再填入实际值；frpc.toml 已被 Git 忽略。
+# ===================================================
+
+# 服务器公网地址和端口
+serverAddr = "203.0.113.10"
+serverPort = 7000
+
+# 认证令牌（与服务端一致）
+auth.token = "CHANGE_ME"
+
+# 代理配置
+[[proxies]]
+name = "renovation-ops-web"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 80
+remotePort = 80

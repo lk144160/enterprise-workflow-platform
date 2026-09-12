@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.hr.mapper.HrEmployeeMapper">
+
+    <resultMap type="HrEmployee" id="HrEmployeeResult">
+        <result property="employeeId"        column="employee_id"        />
+        <result property="userId"            column="user_id"            />
+        <result property="employeeNo"        column="employee_no"        />
+        <result property="name"              column="name"               />
+        <result property="gender"            column="gender"             />
+        <result property="birthday"          column="birthday"           />
+        <result property="idCard"            column="id_card"            />
+        <result property="phone"             column="phone"              />
+        <result property="deptId"            column="dept_id"            />
+        <result property="postId"            column="post_id"            />
+        <result property="education"         column="education"          />
+        <result property="entryDate"         column="entry_date"         />
+        <result property="probationEndDate"  column="probation_end_date" />
+        <result property="formalDate"        column="formal_date"        />
+        <result property="contractExpireDate" column="contract_expire_date" />
+        <result property="baseSalary"        column="base_salary"        />
+        <result property="status"            column="status"             />
+        <result property="leaveDate"         column="leave_date"         />
+        <result property="leaveReason"       column="leave_reason"       />
+        <result property="createBy"          column="create_by"          />
+        <result property="createTime"        column="create_time"        />
+        <result property="updateBy"          column="update_by"          />
+        <result property="updateTime"        column="update_time"        />
+        <result property="remark"            column="remark"             />
+        <result property="deptName"          column="dept_name"          />
+        <result property="userName"          column="user_name"          />
+    </resultMap>
+
+    <sql id="selectVo">
+        select e.employee_id, e.user_id, e.employee_no, e.name, e.gender, e.birthday, e.id_card, e.phone,
+               e.dept_id, e.post_id, e.education, e.entry_date, e.probation_end_date, e.formal_date,
+               e.contract_expire_date, e.base_salary, e.status, e.leave_date, e.leave_reason,
+               e.create_by, e.create_time, e.update_by, e.update_time, e.remark,
+               d.dept_name, u.user_name
+        from hr_employee e
+        left join sys_dept d on d.dept_id = e.dept_id
+        left join sys_user u on u.user_id = e.user_id
+    </sql>
+
+    <select id="selectHrEmployeeById" parameterType="Long" resultMap="HrEmployeeResult">
+        <include refid="selectVo"/>
+        where e.employee_id = #{employeeId}
+    </select>
+
+    <select id="selectHrEmployeeByNo" parameterType="String" resultMap="HrEmployeeResult">
+        <include refid="selectVo"/>
+        where e.employee_no = #{employeeNo} limit 1
+    </select>
+
+    <select id="selectHrEmployeeList" parameterType="HrEmployee" resultMap="HrEmployeeResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="employeeNo != null and employeeNo != ''">AND e.employee_no like concat('%', #{employeeNo}, '%')</if>
+            <if test="name != null and name != ''">AND e.name like concat('%', #{name}, '%')</if>
+            <if test="phone != null and phone != ''">AND e.phone like concat('%', #{phone}, '%')</if>
+            <if test="deptId != null">AND e.dept_id = #{deptId}</if>
+            <if test="education != null and education != ''">AND e.education = #{education}</if>
+            <if test="status != null and status != ''">AND e.status = #{status}</if>
+            <if test="userId != null">AND e.user_id = #{userId}</if>
+        </where>
+        order by e.employee_id desc
+    </select>
+
+    <select id="selectContractExpireList" parameterType="int" resultMap="HrEmployeeResult">
+        <include refid="selectVo"/>
+        where e.status in ('1', '2')
+          and e.contract_expire_date is not null
+          and e.contract_expire_date &lt;= date_add(curdate(), interval #{days} day)
+        order by e.contract_expire_date
+    </select>
+
+    <insert id="insertHrEmployee" parameterType="HrEmployee" useGeneratedKeys="true" keyProperty="employeeId">
+        insert into hr_employee (user_id, employee_no, name, gender, birthday, id_card, phone, dept_id, post_id,
+            education, entry_date, probation_end_date, formal_date, contract_expire_date, base_salary, status,
+            create_by, create_time, remark)
+        values (#{userId}, #{employeeNo}, #{name}, #{gender}, #{birthday}, #{idCard}, #{phone}, #{deptId}, #{postId},
+            #{education}, #{entryDate}, #{probationEndDate}, #{formalDate}, #{contractExpireDate}, #{baseSalary}, #{status},
+            #{createBy}, sysdate(), #{remark})
+    </insert>
+
+    <update id="updateHrEmployee" parameterType="HrEmployee">
+        update hr_employee
+        <set>
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="gender != null and gender != ''">gender = #{gender},</if>
+            <if test="birthday != null">birthday = #{birthday},</if>
+            <if test="idCard != null">id_card = #{idCard},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="deptId != null">dept_id = #{deptId},</if>
+            <if test="postId != null">post_id = #{postId},</if>
+            <if test="education != null and education != ''">education = #{education},</if>
+            <if test="entryDate != null">entry_date = #{entryDate},</if>
+            <if test="probationEndDate != null">probation_end_date = #{probationEndDate},</if>
+            <if test="formalDate != null">formal_date = #{formalDate},</if>
+            <if test="contractExpireDate != null">contract_expire_date = #{contractExpireDate},</if>
+            <if test="baseSalary != null">base_salary = #{baseSalary},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="leaveDate != null">leave_date = #{leaveDate},</if>
+            <if test="leaveReason != null">leave_reason = #{leaveReason},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where employee_id = #{employeeId}
+    </update>
+
+    <delete id="deleteHrEmployeeByIds" parameterType="Long">
+        delete from hr_employee where employee_id in
+        <foreach item="employeeId" collection="array" open="(" separator="," close=")">
+            #{employeeId}
+        </foreach>
+    </delete>
+</mapper>

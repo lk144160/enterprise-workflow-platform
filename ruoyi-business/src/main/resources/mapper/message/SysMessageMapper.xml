@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.message.mapper.SysMessageMapper">
+
+    <resultMap type="SysMessage" id="SysMessageResult">
+        <result property="messageId"     column="message_id"     />
+        <result property="receiverId"    column="receiver_id"    />
+        <result property="receiverName"  column="receiver_name"  />
+        <result property="msgType"       column="msg_type"       />
+        <result property="title"         column="title"          />
+        <result property="content"       column="content"        />
+        <result property="routePath"     column="route_path"     />
+        <result property="routeParams"   column="route_params"   />
+        <result property="isRead"        column="is_read"        />
+        <result property="readTime"      column="read_time"      />
+        <result property="createTime"    column="create_time"    />
+    </resultMap>
+
+    <sql id="selectVo">
+        select m.message_id, m.receiver_id, m.msg_type, m.title, m.content, m.route_path, m.route_params,
+               m.is_read, m.read_time, m.create_time, u.nick_name as receiver_name
+        from sys_message m
+        left join sys_user u on m.receiver_id = u.user_id
+    </sql>
+
+    <select id="selectSysMessageById" parameterType="Long" resultMap="SysMessageResult">
+        <include refid="selectVo"/>
+        where m.message_id = #{messageId}
+    </select>
+
+    <select id="selectSysMessageList" parameterType="SysMessage" resultMap="SysMessageResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="receiverId != null">AND m.receiver_id = #{receiverId}</if>
+            <if test="msgType != null and msgType != ''">AND m.msg_type = #{msgType}</if>
+            <if test="isRead != null and isRead != ''">AND m.is_read = #{isRead}</if>
+            <if test="title != null and title != ''">AND m.title like concat('%', #{title}, '%')</if>
+        </where>
+        order by m.message_id desc
+    </select>
+
+    <insert id="insertSysMessage" parameterType="SysMessage" useGeneratedKeys="true" keyProperty="messageId">
+        insert into sys_message (receiver_id, msg_type, title, content, route_path, route_params, is_read, create_time)
+        values (#{receiverId}, #{msgType}, #{title}, #{content}, #{routePath}, #{routeParams}, '0', sysdate())
+    </insert>
+
+    <update id="markRead">
+        update sys_message set is_read = '1', read_time = sysdate()
+        where message_id = #{messageId} and receiver_id = #{receiverId}
+    </update>
+
+    <update id="markAllRead">
+        update sys_message set is_read = '1', read_time = sysdate()
+        where receiver_id = #{receiverId} and is_read = '0'
+    </update>
+
+    <select id="countUnread" resultType="int">
+        select count(1) from sys_message where receiver_id = #{receiverId} and is_read = '0'
+    </select>
+
+    <delete id="deleteSysMessageByIds" parameterType="Long">
+        delete from sys_message where message_id in
+        <foreach item="messageId" collection="array" open="(" separator="," close=")">
+            #{messageId}
+        </foreach>
+    </delete>
+</mapper>

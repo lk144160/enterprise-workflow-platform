@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.flow.mapper.FlowInstanceMapper">
+
+    <resultMap type="FlowInstance" id="FlowInstanceResult">
+        <result property="instanceId"       column="instance_id"       />
+        <result property="flowId"           column="flow_id"           />
+        <result property="flowCode"         column="flow_code"         />
+        <result property="bizType"          column="biz_type"          />
+        <result property="bizId"            column="biz_id"            />
+        <result property="bizTitle"         column="biz_title"         />
+        <result property="bizAmount"        column="biz_amount"        />
+        <result property="currentNodeId"    column="current_node_id"   />
+        <result property="status"           column="status"            />
+        <result property="startUserId"    column="start_user_id"    />
+        <result property="startTime"      column="start_time"       />
+        <result property="endTime"        column="end_time"         />
+        <result property="createBy"       column="create_by"        />
+        <result property="createTime"     column="create_time"      />
+        <result property="customerName"   column="customer_name"    />
+        <result property="customerId"     column="customer_id"      />
+    </resultMap>
+
+    <sql id="selectVo">
+        select i.instance_id, i.flow_id, i.flow_code, i.biz_type, i.biz_id, i.biz_title, i.biz_amount,
+               i.current_node_id, i.status, i.start_user_id, i.start_time, i.end_time, i.create_by, i.create_time,
+               u.nick_name as start_user_name, n.node_name as current_node_name,
+               cc.customer_id as customer_id, cc.customer_name as customer_name
+        from flow_instance i
+        left join sys_user u on i.start_user_id = u.user_id
+        left join flow_node n on i.current_node_id = n.node_id
+        <!-- 客户解析：报价/合同直连客户；收款减免/技术交底/出库经合同间接关联；报销无客户 -->
+        left join crm_customer cc on cc.customer_id = (case i.biz_type
+            when 'quote' then (select q.customer_id from biz_quote q where q.quote_id = i.biz_id)
+            when 'contract' then (select ct.customer_id from biz_contract ct where ct.contract_id = i.biz_id)
+            when 'payment_reduce' then (select ct.customer_id from biz_contract ct where ct.contract_id = (select p.contract_id from biz_payment_plan p where p.plan_id = i.biz_id))
+            when 'disclosure' then (select ct.customer_id from biz_contract ct where ct.contract_id = (select d.contract_id from biz_disclosure d where d.disclosure_id = i.biz_id))
+            when 'stock_out' then (select ct.customer_id from biz_contract ct where ct.contract_id = (select o.contract_id from biz_stock_order o where o.order_id = i.biz_id))
+        end)
+    </sql>
+
+    <select id="selectFlowInstanceById" parameterType="Long" resultMap="FlowInstanceResult">
+        <include refid="selectVo"/>
+        where i.instance_id = #{instanceId}
+    </select>
+
+    <select id="selectActiveInstanceByBiz" resultMap="FlowInstanceResult">
+        <include refid="selectVo"/>
+        where i.biz_type = #{bizType} and i.biz_id = #{bizId} and i.status = '1'
+        limit 1
+    </select>
+
+    <select id="selectLatestInstanceByBiz" resultMap="FlowInstanceResult">
+        <include refid="selectVo"/>
+        where i.biz_type = #{bizType} and i.biz_id = #{bizId}
+        order by i.instance_id desc
+        limit 1
+    </select>
+
+    <select id="selectFlowInstanceList" parameterType="FlowInstance" resultMap="FlowInstanceResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="flowCode != null and flowCode != ''">AND i.flow_code = #{flowCode}</if>
+            <if test="bizType != null and bizType != ''">AND i.biz_type = #{bizType}</if>
+            <if test="bizId != null">AND i.biz_id = #{bizId}</if>
+            <if test="status != null and status != ''">AND i.status = #{status}</if>
+            <if test="startUserId != null">AND i.start_user_id = #{startUserId}</if>
+            <if test="params.beginTime != null and params.beginTime != ''">AND date_format(i.start_time,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')</if>
+            <if test="params.endTime != null and params.endTime != ''">AND date_format(i.start_time,'%y%m%d') &lt;= date_format(#{params.endTime},'%y%m%d')</if>
+        </where>
+        order by i.instance_id desc
+    </select>
+
+    <select id="selectMyInstanceList" parameterType="FlowInstance" resultMap="FlowInstanceResult">
+        <include refid="selectVo"/>
+        <where>
+            AND i.start_user_id = #{startUserId}
+            <if test="bizType != null and bizType != ''">AND i.biz_type = #{bizType}</if>
+            <if test="status != null and status != ''">AND i.status = #{status}</if>
+        </where>
+        order by i.instance_id desc
+    </select>
+
+    <insert id="insertFlowInstance" parameterType="FlowInstance" useGeneratedKeys="true" keyProperty="instanceId">
+        insert into flow_instance (flow_id, flow_code, biz_type, biz_id, biz_title, biz_amount, current_node_id, status, start_user_id, start_time, create_by, create_time)
+        values (#{flowId}, #{flowCode}, #{bizType}, #{bizId}, #{bizTitle}, #{bizAmount}, #{currentNodeId}, #{status}, #{startUserId}, sysdate(), #{createBy}, sysdate())
+    </insert>
+
+    <update id="updateFlowInstance" parameterType="FlowInstance">
+        update flow_instance
+        <set>
+            <if test="currentNodeId != null">current_node_id = #{currentNodeId},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="endTime != null">end_time = #{endTime},</if>
+            update_time = sysdate()
+        </set>
+        where instance_id = #{instanceId}
+    </update>
+
+    <delete id="deleteFlowInstanceById" parameterType="Long">
+        delete from flow_instance where instance_id = #{instanceId}
+    </delete>
+</mapper>

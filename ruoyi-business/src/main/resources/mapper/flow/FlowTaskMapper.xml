@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.flow.mapper.FlowTaskMapper">
+
+    <resultMap type="FlowTask" id="FlowTaskResult">
+        <result property="taskId"        column="task_id"        />
+        <result property="instanceId"    column="instance_id"    />
+        <result property="nodeId"        column="node_id"        />
+        <result property="nodeName"      column="node_name"      />
+        <result property="approverId"    column="approver_id"    />
+        <result property="status"        column="status"         />
+        <result property="opinion"       column="opinion"        />
+        <result property="handleTime"    column="handle_time"    />
+        <result property="createTime"    column="create_time"    />
+        <!-- 关联实例 -->
+        <result property="bizType"       column="biz_type"       />
+        <result property="bizId"         column="biz_id"         />
+        <result property="bizTitle"      column="biz_title"      />
+        <result property="bizAmount"     column="biz_amount"     />
+        <result property="startUserId"   column="start_user_id"  />
+        <result property="startTime"     column="start_time"     />
+        <result property="customerName"  column="customer_name"  />
+    </resultMap>
+
+    <resultMap type="FlowTask" id="FlowTaskWithNamesResult" extends="FlowTaskResult">
+        <result property="approverName"  column="approver_name"  />
+        <result property="startUserName" column="start_user_name"/>
+    </resultMap>
+
+    <!-- 客户姓名解析：报价/合同直连客户；收款减免/技术交底/出库经合同间接关联；报销无客户 -->
+    <sql id="customerNameExpr">
+        (select c.customer_name from crm_customer c where c.customer_id = (case i.biz_type
+            when 'quote' then (select q.customer_id from biz_quote q where q.quote_id = i.biz_id)
+            when 'contract' then (select ct.customer_id from biz_contract ct where ct.contract_id = i.biz_id)
+            when 'payment_reduce' then (select ct.customer_id from biz_contract ct where ct.contract_id = (select p.contract_id from biz_payment_plan p where p.plan_id = i.biz_id))
+            when 'disclosure' then (select ct.customer_id from biz_contract ct where ct.contract_id = (select d.contract_id from biz_disclosure d where d.disclosure_id = i.biz_id))
+            when 'stock_out' then (select ct.customer_id from biz_contract ct where ct.contract_id = (select o.contract_id from biz_stock_order o where o.order_id = i.biz_id))
+        end)) as customer_name
+    </sql>
+
+    <sql id="selectJoinVo">
+        select t.task_id, t.instance_id, t.node_id, t.node_name, t.approver_id, t.status, t.opinion, t.handle_time, t.create_time,
+               i.biz_type, i.biz_id, i.biz_title, i.biz_amount, i.start_user_id, i.start_time,
+               su.nick_name as start_user_name, au.nick_name as approver_name,
+               <include refid="customerNameExpr"/>
+        from flow_task t
+        left join flow_instance i on t.instance_id = i.instance_id
+        left join sys_user su on i.start_user_id = su.user_id
+        left join sys_user au on t.approver_id = au.user_id
+    </sql>
+
+    <select id="selectFlowTaskById" parameterType="Long" resultMap="FlowTaskWithNamesResult">
+        <include refid="selectJoinVo"/>
+        where t.task_id = #{taskId}
+    </select>
+
+    <select id="selectTodoTaskList" parameterType="FlowTask" resultMap="FlowTaskWithNamesResult">
+        <include refid="selectJoinVo"/>
+        <where>
+            AND t.approver_id = #{approverId} AND t.status = '0' AND i.status = '1'
+            <if test="bizType != null and bizType != ''">AND i.biz_type = #{bizType}</if>
+            <if test="bizTitle != null and bizTitle != ''">AND i.biz_title like concat('%', #{bizTitle}, '%')</if>
+        </where>
+        order by t.task_id desc
+    </select>
+
+    <select id="selectTaskListByInstanceId" parameterType="Long" resultMap="FlowTaskWithNamesResult">
+        <include refid="selectJoinVo"/>
+        where t.instance_id = #{instanceId}
+        order by t.task_id
+    </select>
+
+    <insert id="insertFlowTask" parameterType="FlowTask" useGeneratedKeys="true" keyProperty="taskId">
+        insert into flow_task (instance_id, node_id, node_name, approver_id, status, create_by, create_time)
+        values (#{instanceId}, #{nodeId}, #{nodeName}, #{approverId}, #{status}, #{createBy}, sysdate())
+    </insert>
+
+    <update id="updateFlowTask" parameterType="FlowTask">
+        update flow_task
+        <set>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="opinion != null">opinion = #{opinion},</if>
+            handle_time = sysdate(),
+            update_time = sysdate()
+        </set>
+        where task_id = #{taskId}
+    </update>
+
+    <update id="invalidPendingByNode">
+        update flow_task set status = '3', handle_time = sysdate(), update_time = sysdate()
+        where instance_id = #{instanceId} and node_id = #{nodeId} and status = '0'
+        <if test="excludeTaskId != null">and task_id != #{excludeTaskId}</if>
+    </update>
+
+    <select id="countPendingByNode" resultType="int">
+        select count(1) from flow_task
+        where instance_id = #{instanceId} and node_id = #{nodeId} and status = '0'
+    </select>
+
+    <select id="selectUserIdsByRoleAndDept" resultType="Long">
+        select distinct u.user_id
+        from sys_user u
+        inner join sys_user_role ur on u.user_id = ur.user_id
+        inner join sys_role r on ur.role_id = r.role_id
+        where r.role_id = #{roleId} and u.status = '0' and u.del_flag = '0' and u.user_id != 1
+        <if test="deptId != null">and u.dept_id = #{deptId}</if>
+    </select>
+
+    <select id="selectUserIdsByRole" resultType="Long">
+        select distinct u.user_id
+        from sys_user u
+        inner join sys_user_role ur on u.user_id = ur.user_id
+        inner join sys_role r on ur.role_id = r.role_id
+        where r.role_id = #{roleId} and u.status = '0' and u.del_flag = '0' and u.user_id != 1
+    </select>
+</mapper>

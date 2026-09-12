@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.quote.mapper.BizQuoteMapper">
+
+    <resultMap type="BizQuote" id="BizQuoteResult">
+        <result property="quoteId"        column="quote_id"        />
+        <result property="quoteNo"        column="quote_no"        />
+        <result property="customerId"     column="customer_id"     />
+        <result property="projectName"    column="project_name"    />
+        <result property="totalAmount"    column="total_amount"    />
+        <result property="discountAmount" column="discount_amount" />
+        <result property="finalAmount"    column="final_amount"    />
+        <result property="status"         column="status"          />
+        <result property="version"        column="version"         />
+        <result property="submitTime"     column="submit_time"     />
+        <result property="approveTime"    column="approve_time"    />
+        <result property="deptId"         column="dept_id"         />
+        <result property="createBy"       column="create_by"       />
+        <result property="createTime"     column="create_time"     />
+        <result property="updateBy"       column="update_by"       />
+        <result property="updateTime"     column="update_time"     />
+        <result property="remark"         column="remark"          />
+        <result property="customerName"   column="customer_name"   />
+        <result property="customerPhone"  column="customer_phone"  />
+    </resultMap>
+
+    <sql id="selectVo">
+        select q.quote_id, q.quote_no, q.customer_id, q.project_name, q.total_amount, q.discount_amount,
+               q.final_amount, q.status, q.version, q.submit_time, q.approve_time, q.dept_id,
+               q.create_by, q.create_time, q.update_by, q.update_time, q.remark,
+               c.customer_name, c.phone as customer_phone
+        from biz_quote q
+        left join crm_customer c on c.customer_id = q.customer_id
+    </sql>
+
+    <select id="selectBizQuoteById" parameterType="Long" resultMap="BizQuoteResult">
+        <include refid="selectVo"/>
+        where q.quote_id = #{quoteId}
+    </select>
+
+    <select id="selectBizQuoteList" parameterType="BizQuote" resultMap="BizQuoteResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="quoteNo != null and quoteNo != ''">AND q.quote_no like concat('%', #{quoteNo}, '%')</if>
+            <if test="customerId != null">AND q.customer_id = #{customerId}</if>
+            <if test="customerName != null and customerName != ''">AND c.customer_name like concat('%', #{customerName}, '%')</if>
+            <if test="projectName != null and projectName != ''">AND q.project_name like concat('%', #{projectName}, '%')</if>
+            <if test="status != null and status != ''">AND q.status = #{status}</if>
+            <if test="deptId != null">AND q.dept_id = #{deptId}</if>
+            <if test="createBy != null and createBy != ''">AND q.create_by = #{createBy}</if>
+        </where>
+        order by q.quote_id desc
+    </select>
+
+    <select id="selectApprovedQuotesByCustomer" parameterType="Long" resultMap="BizQuoteResult">
+        <include refid="selectVo"/>
+        where q.customer_id = #{customerId} and q.status = '2'
+        order by q.quote_id desc
+    </select>
+
+    <insert id="insertBizQuote" parameterType="BizQuote" useGeneratedKeys="true" keyProperty="quoteId">
+        insert into biz_quote (quote_no, customer_id, project_name, total_amount, discount_amount, final_amount,
+            status, version, dept_id, create_by, create_time, remark)
+        values (#{quoteNo}, #{customerId}, #{projectName}, #{totalAmount}, #{discountAmount}, #{finalAmount},
+            #{status}, #{version}, #{deptId}, #{createBy}, sysdate(), #{remark})
+    </insert>
+
+    <update id="updateBizQuote" parameterType="BizQuote">
+        update biz_quote
+        <set>
+            <if test="quoteNo != null and quoteNo != ''">quote_no = #{quoteNo},</if>
+            <if test="customerId != null">customer_id = #{customerId},</if>
+            <if test="projectName != null and projectName != ''">project_name = #{projectName},</if>
+            <if test="totalAmount != null">total_amount = #{totalAmount},</if>
+            <if test="discountAmount != null">discount_amount = #{discountAmount},</if>
+            <if test="finalAmount != null">final_amount = #{finalAmount},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="version != null">version = #{version},</if>
+            <if test="submitTime != null">submit_time = #{submitTime},</if>
+            <if test="approveTime != null">approve_time = #{approveTime},</if>
+            <if test="deptId != null">dept_id = #{deptId},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where quote_id = #{quoteId}
+    </update>
+
+    <delete id="deleteBizQuoteById" parameterType="Long">
+        delete from biz_quote where quote_id = #{quoteId}
+    </delete>
+
+    <delete id="deleteBizQuoteByIds" parameterType="Long">
+        delete from biz_quote where quote_id in
+        <foreach item="quoteId" collection="array" open="(" separator="," close=")">
+            #{quoteId}
+        </foreach>
+    </delete>
+</mapper>

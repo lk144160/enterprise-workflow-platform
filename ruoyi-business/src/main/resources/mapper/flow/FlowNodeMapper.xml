@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.flow.mapper.FlowNodeMapper">
+
+    <resultMap type="FlowNode" id="FlowNodeResult">
+        <result property="nodeId"           column="node_id"           />
+        <result property="flowId"           column="flow_id"           />
+        <result property="nodeOrder"        column="node_order"        />
+        <result property="nodeName"         column="node_name"         />
+        <result property="approverType"     column="approver_type"     />
+        <result property="approverValue"    column="approver_value"    />
+        <result property="multiSign"        column="multi_sign"        />
+        <result property="conditionAmount"  column="condition_amount"  />
+        <result property="createBy"         column="create_by"         />
+        <result property="createTime"       column="create_time"       />
+        <result property="updateBy"         column="update_by"         />
+        <result property="updateTime"       column="update_time"       />
+        <result property="remark"           column="remark"            />
+    </resultMap>
+
+    <sql id="selectVo">
+        select node_id, flow_id, node_order, node_name, approver_type, approver_value, multi_sign, condition_amount, create_by, create_time, update_by, update_time, remark
+        from flow_node
+    </sql>
+
+    <select id="selectFlowNodeById" parameterType="Long" resultMap="FlowNodeResult">
+        <include refid="selectVo"/>
+        where node_id = #{nodeId}
+    </select>
+
+    <select id="selectNodeListByFlowId" parameterType="Long" resultMap="FlowNodeResult">
+        <include refid="selectVo"/>
+        where flow_id = #{flowId}
+        order by node_order
+    </select>
+
+    <select id="selectFlowNodeList" parameterType="FlowNode" resultMap="FlowNodeResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="flowId != null">AND flow_id = #{flowId}</if>
+            <if test="nodeName != null and nodeName != ''">AND node_name like concat('%', #{nodeName}, '%')</if>
+        </where>
+        order by flow_id, node_order
+    </select>
+
+    <insert id="insertFlowNode" parameterType="FlowNode" useGeneratedKeys="true" keyProperty="nodeId">
+        insert into flow_node (flow_id, node_order, node_name, approver_type, approver_value, multi_sign, condition_amount, create_by, create_time, remark)
+        values (#{flowId}, #{nodeOrder}, #{nodeName}, #{approverType}, #{approverValue}, #{multiSign}, #{conditionAmount}, #{createBy}, sysdate(), #{remark})
+    </insert>
+
+    <update id="updateFlowNode" parameterType="FlowNode">
+        update flow_node
+        <set>
+            <if test="nodeOrder != null">node_order = #{nodeOrder},</if>
+            <if test="nodeName != null and nodeName != ''">node_name = #{nodeName},</if>
+            <if test="approverType != null and approverType != ''">approver_type = #{approverType},</if>
+            <if test="approverValue != null">approver_value = #{approverValue},</if>
+            <if test="multiSign != null and multiSign != ''">multi_sign = #{multiSign},</if>
+            condition_amount = #{conditionAmount},
+            update_time = sysdate()
+        </set>
+        where node_id = #{nodeId}
+    </update>
+
+    <delete id="deleteFlowNodeById" parameterType="Long">
+        delete from flow_node where node_id = #{nodeId}
+    </delete>
+
+    <delete id="deleteNodeByFlowIds" parameterType="Long">
+        delete from flow_node where flow_id in
+        <foreach item="flowId" collection="array" open="(" separator="," close=")">
+            #{flowId}
+        </foreach>
+    </delete>
+</mapper>

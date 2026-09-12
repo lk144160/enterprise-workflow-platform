@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.expense.mapper.BizExpenseMapper">
+
+    <resultMap type="BizExpense" id="BizExpenseResult">
+        <result property="expenseId"    column="expense_id"    />
+        <result property="expenseNo"    column="expense_no"    />
+        <result property="applicantId"  column="applicant_id"  />
+        <result property="deptId"       column="dept_id"       />
+        <result property="expenseType"  column="expense_type"  />
+        <result property="amount"       column="amount"        />
+        <result property="expenseDate"  column="expense_date"  />
+        <result property="invoiceCount" column="invoice_count" />
+        <result property="description"  column="description"   />
+        <result property="status"       column="status"        />
+        <result property="submitTime"   column="submit_time"   />
+        <result property="payTime"      column="pay_time"      />
+        <result property="createBy"     column="create_by"     />
+        <result property="createTime"   column="create_time"   />
+        <result property="updateBy"     column="update_by"     />
+        <result property="updateTime"   column="update_time"   />
+        <result property="remark"       column="remark"        />
+        <result property="applicantName" column="applicant_name" />
+        <result property="deptName"     column="dept_name"     />
+    </resultMap>
+
+    <sql id="selectVo">
+        select e.expense_id, e.expense_no, e.applicant_id, e.dept_id, e.expense_type, e.amount, e.expense_date,
+               e.invoice_count, e.description, e.status, e.submit_time, e.pay_time,
+               e.create_by, e.create_time, e.update_by, e.update_time, e.remark,
+               u.nick_name as applicant_name, d.dept_name
+        from biz_expense e
+        left join sys_user u on u.user_id = e.applicant_id
+        left join sys_dept d on d.dept_id = e.dept_id
+    </sql>
+
+    <select id="selectBizExpenseById" parameterType="Long" resultMap="BizExpenseResult">
+        <include refid="selectVo"/>
+        where e.expense_id = #{expenseId}
+    </select>
+
+    <select id="selectBizExpenseList" parameterType="BizExpense" resultMap="BizExpenseResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="expenseNo != null and expenseNo != ''">AND e.expense_no like concat('%', #{expenseNo}, '%')</if>
+            <if test="applicantId != null">AND e.applicant_id = #{applicantId}</if>
+            <if test="applicantName != null and applicantName != ''">AND u.nick_name like concat('%', #{applicantName}, '%')</if>
+            <if test="deptId != null">AND e.dept_id = #{deptId}</if>
+            <if test="expenseType != null and expenseType != ''">AND e.expense_type = #{expenseType}</if>
+            <if test="status != null and status != ''">AND e.status = #{status}</if>
+            <if test="params.beginTime != null and params.beginTime != ''">AND date_format(e.expense_date,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')</if>
+            <if test="params.endTime != null and params.endTime != ''">AND date_format(e.expense_date,'%y%m%d') &lt;= date_format(#{params.endTime},'%y%m%d')</if>
+        </where>
+        order by e.expense_id desc
+    </select>
+
+    <insert id="insertBizExpense" parameterType="BizExpense" useGeneratedKeys="true" keyProperty="expenseId">
+        insert into biz_expense (expense_no, applicant_id, dept_id, expense_type, amount, expense_date,
+            invoice_count, description, status, create_by, create_time, remark)
+        values (#{expenseNo}, #{applicantId}, #{deptId}, #{expenseType}, #{amount}, #{expenseDate},
+            #{invoiceCount}, #{description}, #{status}, #{createBy}, sysdate(), #{remark})
+    </insert>
+
+    <update id="updateBizExpense" parameterType="BizExpense">
+        update biz_expense
+        <set>
+            <if test="expenseType != null and expenseType != ''">expense_type = #{expenseType},</if>
+            <if test="amount != null">amount = #{amount},</if>
+            <if test="expenseDate != null">expense_date = #{expenseDate},</if>
+            <if test="invoiceCount != null">invoice_count = #{invoiceCount},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="submitTime != null">submit_time = #{submitTime},</if>
+            <if test="payTime != null">pay_time = #{payTime},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where expense_id = #{expenseId}
+    </update>
+
+    <delete id="deleteBizExpenseByIds" parameterType="Long">
+        delete from biz_expense where expense_id in
+        <foreach item="expenseId" collection="array" open="(" separator="," close=")">
+            #{expenseId}
+        </foreach>
+    </delete>
+</mapper>

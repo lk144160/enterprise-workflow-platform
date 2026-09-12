@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.contract.mapper.BizContractMapper">
+
+    <resultMap type="BizContract" id="BizContractResult">
+        <result property="contractId"     column="contract_id"     />
+        <result property="contractNo"     column="contract_no"     />
+        <result property="customerId"     column="customer_id"     />
+        <result property="quoteId"        column="quote_id"        />
+        <result property="contractAmount" column="contract_amount" />
+        <result property="paidAmount"     column="paid_amount"     />
+        <result property="amountDiffNote" column="amount_diff_note"/>
+        <result property="signDate"       column="sign_date"       />
+        <result property="startDate"      column="start_date"      />
+        <result property="endDate"        column="end_date"        />
+        <result property="finishDate"     column="finish_date"     />
+        <result property="status"         column="status"          />
+        <result property="deptId"         column="dept_id"         />
+        <result property="ownerUserId"    column="owner_user_id"   />
+        <result property="ownerUserName"  column="owner_user_name" />
+        <result property="createBy"       column="create_by"       />
+        <result property="createTime"     column="create_time"     />
+        <result property="updateBy"       column="update_by"       />
+        <result property="updateTime"     column="update_time"     />
+        <result property="remark"         column="remark"          />
+        <result property="customerName"   column="customer_name"   />
+        <result property="customerPhone"  column="customer_phone"  />
+        <result property="estate"         column="estate"          />
+        <result property="houseType"      column="house_type"      />
+        <result property="area"           column="area"            />
+        <result property="budget"         column="budget"          />
+        <result property="quoteNo"        column="quote_no"        />
+    </resultMap>
+
+    <sql id="selectVo">
+        select t.contract_id, t.contract_no, t.customer_id, t.quote_id, t.contract_amount, t.paid_amount,
+               t.amount_diff_note, t.sign_date, t.start_date, t.end_date, t.finish_date, t.status, t.dept_id,
+               t.owner_user_id, t.create_by, t.create_time, t.update_by, t.update_time, t.remark,
+               c.customer_name, c.phone as customer_phone, c.estate, c.house_type, c.area, c.budget, q.quote_no,
+               ou.nick_name as owner_user_name
+        from biz_contract t
+        left join crm_customer c on c.customer_id = t.customer_id
+        left join biz_quote q on q.quote_id = t.quote_id
+        left join sys_user ou on ou.user_id = t.owner_user_id
+    </sql>
+
+    <select id="selectBizContractById" parameterType="Long" resultMap="BizContractResult">
+        <include refid="selectVo"/>
+        where t.contract_id = #{contractId}
+    </select>
+
+    <select id="selectBizContractList" parameterType="BizContract" resultMap="BizContractResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="contractNo != null and contractNo != ''">AND t.contract_no like concat('%', #{contractNo}, '%')</if>
+            <if test="customerId != null">AND t.customer_id = #{customerId}</if>
+            <if test="customerName != null and customerName != ''">AND c.customer_name like concat('%', #{customerName}, '%')</if>
+            <if test="quoteId != null">AND t.quote_id = #{quoteId}</if>
+            <if test="status != null and status != ''">AND t.status = #{status}</if>
+            <if test="deptId != null">AND t.dept_id = #{deptId}</if>
+            <if test="createBy != null and createBy != ''">AND t.create_by = #{createBy}</if>
+        </where>
+        order by t.contract_id desc
+    </select>
+
+    <insert id="insertBizContract" parameterType="BizContract" useGeneratedKeys="true" keyProperty="contractId">
+        insert into biz_contract (contract_no, customer_id, quote_id, contract_amount, paid_amount, amount_diff_note,
+            sign_date, start_date, end_date, status, dept_id, owner_user_id, create_by, create_time, remark)
+        values (#{contractNo}, #{customerId}, #{quoteId}, #{contractAmount}, 0, #{amountDiffNote},
+            #{signDate}, #{startDate}, #{endDate}, #{status}, #{deptId}, #{ownerUserId}, #{createBy}, sysdate(), #{remark})
+    </insert>
+
+    <update id="updateBizContract" parameterType="BizContract">
+        update biz_contract
+        <set>
+            <if test="contractNo != null and contractNo != ''">contract_no = #{contractNo},</if>
+            <if test="customerId != null">customer_id = #{customerId},</if>
+            <if test="quoteId != null">quote_id = #{quoteId},</if>
+            <if test="contractAmount != null">contract_amount = #{contractAmount},</if>
+            <if test="paidAmount != null">paid_amount = #{paidAmount},</if>
+            <if test="amountDiffNote != null">amount_diff_note = #{amountDiffNote},</if>
+            <if test="signDate != null">sign_date = #{signDate},</if>
+            <if test="startDate != null">start_date = #{startDate},</if>
+            <if test="endDate != null">end_date = #{endDate},</if>
+            <if test="finishDate != null">finish_date = #{finishDate},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="deptId != null">dept_id = #{deptId},</if>
+            <!-- 负责人：传值更新（0视为清除），内部流转不传则保持原值 -->
+            <if test="ownerUserId != null">owner_user_id = nullif(#{ownerUserId}, 0),</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where contract_id = #{contractId}
+    </update>
+
+    <delete id="deleteBizContractById" parameterType="Long">
+        delete from biz_contract where contract_id = #{contractId}
+    </delete>
+
+    <delete id="deleteBizContractByIds" parameterType="Long">
+        delete from biz_contract where contract_id in
+        <foreach item="contractId" collection="array" open="(" separator="," close=")">
+            #{contractId}
+        </foreach>
+    </delete>
+</mapper>

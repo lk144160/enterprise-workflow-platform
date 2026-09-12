@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.crm.mapper.CrmCustomerMapper">
+
+    <resultMap type="CrmCustomer" id="CrmCustomerResult">
+        <result property="customerId"      column="customer_id"      />
+        <result property="customerName"    column="customer_name"    />
+        <result property="phone"           column="phone"            />
+        <result property="source"          column="source"           />
+        <result property="estate"          column="estate"           />
+        <result property="houseType"       column="house_type"       />
+        <result property="area"            column="area"             />
+        <result property="budget"          column="budget"           />
+        <result property="demand"          column="demand"           />
+        <result property="intentionLevel"  column="intention_level"  />
+        <result property="status"           column="status"            />
+        <result property="ownerName"        column="owner_name"       />
+        <result property="designerId"       column="designer_id"      />
+        <result property="advisorId"       column="advisor_id"       />
+        <result property="deptId"          column="dept_id"          />
+        <result property="latestFollowTime" column="latest_follow_time" />
+        <result property="nextFollowTime"  column="next_follow_time" />
+        <result property="lossReason"      column="loss_reason"      />
+        <result property="payMethod"       column="pay_method"       />
+        <result property="visitCount"      column="visit_count"      />
+        <result property="depositSum"      column="deposit_sum"      />
+        <result property="createBy"        column="create_by"        />
+        <result property="createTime"      column="create_time"      />
+        <result property="updateBy"        column="update_by"        />
+        <result property="updateTime"      column="update_time"      />
+        <result property="remark"          column="remark"           />
+        <result property="ownerName"       column="owner_name"       />
+        <result property="designerName"    column="designer_name"    />
+        <result property="advisorName"     column="advisor_name"     />
+        <result property="createByName"    column="create_by_name"   />
+        <result property="deptName"        column="dept_name"        />
+    </resultMap>
+
+    <sql id="selectVo">
+        select c.customer_id, c.customer_name, c.phone, c.source, c.estate, c.house_type, c.area, c.budget,
+               c.demand, c.intention_level, c.status, c.owner_name, c.designer_id, c.advisor_id, c.dept_id, c.latest_follow_time,
+               c.next_follow_time, c.loss_reason, c.pay_method, c.create_by, c.create_time, c.update_by, c.update_time, c.remark,
+               du.nick_name as designer_name, au.nick_name as advisor_name,
+               cu.nick_name as create_by_name, d.dept_name,
+               (select count(*) from crm_follow_record fr where fr.customer_id = c.customer_id and fr.follow_type = '3') as visit_count
+        from crm_customer c
+        left join sys_user du on du.user_id = c.designer_id
+        left join sys_user au on au.user_id = c.advisor_id
+        left join sys_user cu on cu.user_name = c.create_by
+        left join sys_dept d on d.dept_id = c.dept_id
+    </sql>
+
+    <select id="selectCrmCustomerById" parameterType="Long" resultMap="CrmCustomerResult">
+        <include refid="selectVo"/>
+        where c.customer_id = #{customerId}
+    </select>
+
+    <select id="selectCrmCustomerByPhone" parameterType="String" resultMap="CrmCustomerResult">
+        <include refid="selectVo"/>
+        where c.phone = #{phone} limit 1
+    </select>
+
+    <select id="selectCrmCustomerList" parameterType="CrmCustomer" resultMap="CrmCustomerResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="customerName != null and customerName != ''">AND c.customer_name like concat('%', #{customerName}, '%')</if>
+            <if test="phone != null and phone != ''">AND c.phone like concat('%', #{phone}, '%')</if>
+            <if test="source != null and source != ''">AND c.source = #{source}</if>
+            <if test="estate != null and estate != ''">AND c.estate like concat('%', #{estate}, '%')</if>
+            <if test="intentionLevel != null and intentionLevel != ''">AND c.intention_level = #{intentionLevel}</if>
+            <if test="status != null and status != ''">AND c.status = #{status}</if>
+            <if test="ownerName != null and ownerName != ''">AND c.owner_name like concat('%', #{ownerName}, '%')</if>
+            <if test="designerId != null">AND c.designer_id = #{designerId}</if>
+            <if test="advisorId != null">AND c.advisor_id = #{advisorId}</if>
+            <if test="deptId != null">AND c.dept_id = #{deptId}</if>
+            <if test="params.beginTime != null and params.beginTime != ''">AND date_format(c.create_time,'%y%m%d') &gt;= date_format(#{params.beginTime},'%y%m%d')</if>
+            <if test="params.endTime != null and params.endTime != ''">AND date_format(c.create_time,'%y%m%d') &lt;= date_format(#{params.endTime},'%y%m%d')</if>
+        </where>
+        order by c.customer_id desc
+    </select>
+
+    <select id="selectOverdueFollowList" resultMap="CrmCustomerResult">
+        <include refid="selectVo"/>
+        where c.status in ('1', '2')
+          and ifnull(c.latest_follow_time, c.create_time) &lt; date_sub(now(), interval #{days} day)
+        order by ifnull(c.latest_follow_time, c.create_time)
+    </select>
+
+    <insert id="insertCrmCustomer" parameterType="CrmCustomer" useGeneratedKeys="true" keyProperty="customerId">
+        insert into crm_customer (customer_name, phone, source, estate, house_type, area, budget, demand,
+            intention_level, status, owner_name, designer_id, advisor_id, dept_id, loss_reason, pay_method, create_by, create_time, remark)
+        values (#{customerName}, #{phone}, #{source}, #{estate}, #{houseType}, #{area}, #{budget}, #{demand},
+            #{intentionLevel}, #{status}, #{ownerName}, #{designerId}, #{advisorId}, #{deptId}, #{lossReason}, #{payMethod}, #{createBy}, sysdate(), #{remark})
+    </insert>
+
+    <update id="updateCrmCustomer" parameterType="CrmCustomer">
+        update crm_customer
+        <set>
+            <if test="customerName != null and customerName != ''">customer_name = #{customerName},</if>
+            <if test="phone != null and phone != ''">phone = #{phone},</if>
+            <if test="source != null and source != ''">source = #{source},</if>
+            <if test="estate != null">estate = #{estate},</if>
+            <if test="houseType != null">house_type = #{houseType},</if>
+            <if test="area != null">area = #{area},</if>
+            <if test="budget != null">budget = #{budget},</if>
+            <if test="demand != null">demand = #{demand},</if>
+            <if test="intentionLevel != null and intentionLevel != ''">intention_level = #{intentionLevel},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="ownerName != null">owner_name = #{ownerName},</if>
+            <if test="deptId != null">dept_id = #{deptId},</if>
+            <if test="latestFollowTime != null">latest_follow_time = #{latestFollowTime},</if>
+            <if test="nextFollowTime != null">next_follow_time = #{nextFollowTime},</if>
+            <if test="lossReason != null">loss_reason = #{lossReason},</if>
+            <if test="payMethod != null">pay_method = #{payMethod},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where customer_id = #{customerId}
+    </update>
+
+    <update id="updateCustomerStatus">
+        update crm_customer set status = #{status}, update_time = sysdate() where customer_id = #{customerId}
+    </update>
+
+    <!-- 绑定更新（负责设计师/家装顾问，允许置空，前端编辑保存专用；内部流程走 updateCrmCustomer 不受影响） -->
+    <update id="updateCustomerBind">
+        update crm_customer set designer_id = #{designerId}, advisor_id = #{advisorId},
+            update_by = #{updateBy}, update_time = sysdate()
+        where customer_id = #{customerId}
+    </update>
+
+    <delete id="deleteCrmCustomerById" parameterType="Long">
+        delete from crm_customer where customer_id = #{customerId}
+    </delete>
+
+    <delete id="deleteCrmCustomerByIds" parameterType="Long">
+        delete from crm_customer where customer_id in
+        <foreach item="customerId" collection="array" open="(" separator="," close=")">
+            #{customerId}
+        </foreach>
+    </delete>
+</mapper>

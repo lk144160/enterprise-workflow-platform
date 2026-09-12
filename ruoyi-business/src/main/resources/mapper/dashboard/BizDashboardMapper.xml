@@ -1,0 +1,445 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.dashboard.mapper.BizDashboardMapper">
+
+    <select id="countMyTodoTasks" resultType="int">
+        select count(1) from flow_task
+        where approver_id = #{userId} and status = '0'
+    </select>
+
+    <select id="countMonthNewCustomers" resultType="int">
+        select count(1) from crm_customer
+        where date_format(create_time,'%y%m') = date_format(now(),'%y%m')
+    </select>
+
+    <select id="countMonthQuotes" resultType="int">
+        select count(1) from biz_quote
+        where date_format(create_time,'%y%m') = date_format(now(),'%y%m')
+    </select>
+
+    <select id="sumMonthSignAmount" resultType="java.math.BigDecimal">
+        select ifnull(sum(contract_amount), 0) from biz_contract
+        where status in ('2', '3', '4')
+          and date_format(sign_date,'%y%m') = date_format(now(),'%y%m')
+    </select>
+
+    <select id="sumMonthDepositReceived" resultType="java.math.BigDecimal">
+        select ifnull(sum(amount), 0) from biz_deposit
+        where status &lt;&gt; '3'
+          and date_format(pay_time,'%y%m') = date_format(now(),'%y%m')
+    </select>
+
+    <select id="countOverduePayments" resultType="int">
+        select count(1) from biz_payment_plan
+        where status = '1' and plan_date &lt; curdate()
+    </select>
+
+    <select id="countPendingDrawings" resultType="int">
+        select count(1) from biz_drawing
+        where status = '0' and is_current = '1'
+    </select>
+
+    <select id="countUncollectedPayments" resultType="int">
+        select count(1) from biz_payment_plan
+        where status = '1'
+    </select>
+
+    <select id="countPendingPayExpenses" resultType="int">
+        select count(1) from biz_expense
+        where status = '2'
+    </select>
+
+    <select id="countLowStock" resultType="int">
+        select count(1) from biz_inventory i
+        inner join biz_material m on m.material_id = i.material_id
+        where m.status = '0' and i.quantity &lt;= m.safety_stock
+    </select>
+
+    <!-- ==================== 大屏统计 ==================== -->
+
+    <!-- 每日新增客户数 -->
+    <select id="countCustomerDaily" resultType="java.util.HashMap">
+        select date_format(create_time, '%Y-%m-%d') as date, count(1) as count
+        from crm_customer
+        where create_time &gt;= concat(#{beginTime}, ' 00:00:00')
+          and create_time &lt;= concat(#{endTime}, ' 23:59:59')
+        group by date_format(create_time, '%Y-%m-%d')
+    </select>
+
+    <!-- 每日到访次数 -->
+    <select id="countVisitDaily" resultType="java.util.HashMap">
+        select date_format(follow_time, '%Y-%m-%d') as date, count(1) as count
+        from crm_follow_record
+        where follow_type = '3'
+          and follow_time &gt;= concat(#{beginTime}, ' 00:00:00')
+          and follow_time &lt;= concat(#{endTime}, ' 23:59:59')
+        group by date_format(follow_time, '%Y-%m-%d')
+    </select>
+
+    <!-- 每日报价单数 -->
+    <select id="countQuoteDaily" resultType="java.util.HashMap">
+        select date_format(create_time, '%Y-%m-%d') as date, count(1) as count
+        from biz_quote
+        where create_time &gt;= concat(#{beginTime}, ' 00:00:00')
+          and create_time &lt;= concat(#{endTime}, ' 23:59:59')
+        group by date_format(create_time, '%Y-%m-%d')
+    </select>
+
+    <!-- 每日定金收款金额（净额，不含已退还） -->
+    <select id="sumDepositDaily" resultType="java.util.HashMap">
+        select date_format(pay_time, '%Y-%m-%d') as date, ifnull(sum(amount), 0) as amount
+        from biz_deposit
+        where status &lt;&gt; '3'
+          and pay_time &gt;= concat(#{beginTime}, ' 00:00:00')
+          and pay_time &lt;= concat(#{endTime}, ' 23:59:59')
+        group by date_format(pay_time, '%Y-%m-%d')
+    </select>
+
+    <!-- 每日实收金额（净额，冲正记录为负数自动抵减） -->
+    <select id="sumPaymentDaily" resultType="java.util.HashMap">
+        select date_format(pay_time, '%Y-%m-%d') as date, ifnull(sum(amount), 0) as amount
+        from biz_payment_record
+        where pay_time &gt;= concat(#{beginTime}, ' 00:00:00')
+          and pay_time &lt;= concat(#{endTime}, ' 23:59:59')
+        group by date_format(pay_time, '%Y-%m-%d')
+    </select>
+
+    <!-- 新增客户按来源分组（字典标签） -->
+    <select id="countCustomerBySource" resultType="java.util.HashMap">
+        select ifnull(dt.dict_label, ifnull(c.source, '未填写')) as name, count(1) as value
+        from crm_customer c
+        left join sys_dict_data dt on dt.dict_type = 'crm_customer_source' and dt.dict_value = c.source
+        where c.create_time &gt;= concat(#{beginTime}, ' 00:00:00')
+          and c.create_time &lt;= concat(#{endTime}, ' 23:59:59')
+        group by ifnull(dt.dict_label, ifnull(c.source, '未填写'))
+        order by value desc
+    </select>
+
+    <!-- 定金按状态汇总（区间内收款） -->
+    <select id="sumDepositByStatus" resultType="java.util.HashMap">
+        select status, count(1) as cnt, ifnull(sum(amount), 0) as amount
+        from biz_deposit
+        where pay_time &gt;= concat(#{beginTime}, ' 00:00:00')
+          and pay_time &lt;= concat(#{endTime}, ' 23:59:59')
+        group by status
+    </select>
+
+    <!-- 图纸按类型统计（当前版本） -->
+    <select id="countDrawingByType" resultType="java.util.HashMap">
+        select ifnull(dt.dict_label, d.drawing_type) as name, count(1) as value
+        from biz_drawing d
+        left join sys_dict_data dt on dt.dict_type = 'biz_drawing_type' and dt.dict_value = d.drawing_type
+        where d.is_current = '1'
+        <if test="beginTime != null and beginTime != ''">
+          and d.create_time &gt;= concat(#{beginTime}, ' 00:00:00')
+          and d.create_time &lt;= concat(#{endTime}, ' 23:59:59')
+        </if>
+        group by ifnull(dt.dict_label, d.drawing_type)
+        order by value desc
+    </select>
+
+    <!-- 工地按状态统计 -->
+    <select id="countSiteByStatus" resultType="java.util.HashMap">
+        select ifnull(dt.dict_label, s.status) as name, count(1) as value
+        from biz_site s
+        left join sys_dict_data dt on dt.dict_type = 'biz_site_status' and dt.dict_value = s.status
+        group by ifnull(dt.dict_label, s.status)
+    </select>
+
+    <!-- 工地进度列表（客户姓名+楼盘、整体完成率、当前阶段、计划工期取阶段表聚合） -->
+    <select id="selectSiteProgressList" resultType="java.util.HashMap">
+        select s.site_id as siteId, s.site_no as siteNo, s.status,
+               concat(c.customer_name, if(c.estate is null or c.estate = '', '', concat('（', c.estate, '）'))) as customer,
+               ifnull(dt.dict_label, s.status) as statusLabel,
+               s.area, s.designer_name as designerName, s.supervisor_name as supervisorName,
+               s.start_date as actualStart,
+               agg.plan_start_date as planStart, agg.plan_end_date as planEnd, s.finish_date as finishDate,
+               agg.done_stages as doneStages, agg.total_stages as totalStages,
+               (select ifnull(ifnull(ps2.stage_name, dt2.dict_label), '施工中') from biz_progress_stage ps2
+                 left join sys_dict_data dt2 on dt2.dict_type = 'biz_stage_type' and dt2.dict_value = ps2.stage_type
+                 where ps2.site_id = s.site_id and ps2.status = '1' order by ps2.sort_order limit 1) as currentStage
+        from biz_site s
+        inner join crm_customer c on c.customer_id = s.customer_id
+        left join sys_dict_data dt on dt.dict_type = 'biz_site_status' and dt.dict_value = s.status
+        left join (
+            select ps.site_id,
+                   min(ps.plan_start_date) as plan_start_date,
+                   max(ps.plan_end_date) as plan_end_date,
+                   sum(case when ps.status = '2' then 1 else 0 end) as done_stages,
+                   count(1) as total_stages
+            from biz_progress_stage ps
+            group by ps.site_id
+        ) agg on agg.site_id = s.site_id
+        order by s.status, agg.plan_start_date
+    </select>
+
+    <!-- 进行中阶段分布（各阶段有多少工地进行到该工序） -->
+    <select id="countStageRunning" resultType="java.util.HashMap">
+        select ifnull(ifnull(ps.stage_name, dt.dict_label), '其他') as name, count(1) as value
+        from biz_progress_stage ps
+        inner join biz_site s on s.site_id = ps.site_id and s.status = '1'
+        left join sys_dict_data dt on dt.dict_type = 'biz_stage_type' and dt.dict_value = ps.stage_type
+        where ps.status = '1'
+        group by ifnull(ifnull(ps.stage_name, dt.dict_label), '其他')
+        order by value desc
+    </select>
+
+    <!-- 签约汇总（区间内） -->
+    <select id="sumSignRange" resultType="java.util.HashMap">
+        select count(1) as cnt, ifnull(sum(contract_amount), 0) as amount
+        from biz_contract
+        where status in ('2', '3', '4')
+          and sign_date &gt;= #{beginTime} and sign_date &lt;= #{endTime}
+    </select>
+
+    <!-- 每日签约数量与金额 -->
+    <select id="countSignDaily" resultType="java.util.HashMap">
+        select date_format(sign_date, '%Y-%m-%d') as date,
+               count(1) as cnt,
+               ifnull(sum(contract_amount), 0) as amount
+        from biz_contract
+        where status in ('2', '3', '4')
+          and sign_date &gt;= #{beginTime} and sign_date &lt;= #{endTime}
+        group by date_format(sign_date, '%Y-%m-%d')
+        order by date
+    </select>
+
+    <!-- 未签约客户意向等级分布（字典标签，按A/B/C/D排序） -->
+    <select id="countIntentionOfUnsigned" resultType="java.util.HashMap">
+        select ifnull(dt.dict_label, '未评级') as name, count(1) as value
+        from crm_customer c
+        left join sys_dict_data dt on dt.dict_type = 'crm_intention_level' and dt.dict_value = c.intention_level
+        where c.status in ('1', '2', '3')
+        group by ifnull(dt.dict_label, '未评级'), c.intention_level
+        order by field(ifnull(c.intention_level, 'Z'), 'A', 'B', 'C', 'D', 'Z')
+    </select>
+
+    <!-- 已报价未签约客户（预计签约池：最新报价未作废/驳回，客户未签约，不限报价时间） -->
+    <select id="selectQuotePendingList" resultType="java.util.HashMap">
+        select concat(c.customer_name, if(c.estate is null or c.estate = '', '', concat('（', c.estate, '）'))) as customer,
+               c.intention_level as intentionLevel, q.final_amount as finalAmount, q.create_time as quoteTime,
+               d.deposit_amount as depositAmount
+        from crm_customer c
+        inner join (
+            select customer_id, max(quote_id) as quote_id from biz_quote group by customer_id
+        ) latest on latest.customer_id = c.customer_id
+        inner join biz_quote q on q.quote_id = latest.quote_id
+        left join (
+            select customer_id, sum(amount) as deposit_amount from biz_deposit where status in ('0', '1') group by customer_id
+        ) d on d.customer_id = c.customer_id
+        where c.status in ('1', '2', '3')
+          and q.status in ('0', '1', '2')
+        order by field(ifnull(c.intention_level, 'Z'), 'A', 'B', 'C', 'D', 'Z'), q.final_amount desc
+        limit 50
+    </select>
+
+    <!-- 未来7天待收款期次 -->
+    <select id="selectPaymentDueList" resultType="java.util.HashMap">
+        select concat(c.customer_name, if(c.estate is null or c.estate = '', '', concat('（', c.estate, '）'))) as customer,
+               ct.contract_no as contractNo, p.period_no as periodNo, p.period_name as periodName,
+               p.plan_amount as planAmount, p.plan_date as planDate
+        from biz_payment_plan p
+        inner join biz_contract ct on ct.contract_id = p.contract_id
+        inner join crm_customer c on c.customer_id = ct.customer_id
+        where p.status = '1' and p.plan_date between curdate() and date_add(curdate(), interval 7 day)
+        order by p.plan_date
+    </select>
+
+    <!-- 区间内收款汇总 -->
+    <select id="sumPaymentReceived" resultType="java.util.HashMap">
+        select count(1) as cnt, ifnull(sum(amount), 0) as amount
+        from biz_payment_record
+        where pay_time &gt;= concat(#{beginTime}, ' 00:00:00')
+          and pay_time &lt;= concat(#{endTime}, ' 23:59:59')
+    </select>
+
+    <!-- 到访明细（最近） -->
+    <select id="selectRecentVisits" resultType="java.util.HashMap">
+        select concat(c.customer_name, if(c.estate is null or c.estate = '', '', concat('（', c.estate, '）'))) as customer,
+               r.follow_time as followTime, r.visit_count as visitCount,
+               ifnull(dt.dict_label, r.visit_purpose) as purposeLabel
+        from crm_follow_record r
+        inner join crm_customer c on c.customer_id = r.customer_id
+        left join sys_dict_data dt on dt.dict_type = 'crm_visit_purpose' and dt.dict_value = r.visit_purpose
+        where r.follow_type = '3'
+          and r.follow_time &gt;= concat(#{beginTime}, ' 00:00:00')
+          and r.follow_time &lt;= concat(#{endTime}, ' 23:59:59')
+        order by r.follow_time desc
+        limit 20
+    </select>
+
+    <!-- ============= 趋势明细查询（tooltip 展示当日客户姓名+楼盘） ============= -->
+
+    <!-- 新增客户明细（区间内，按日期） -->
+    <select id="selectCustomerDetails" resultType="java.util.HashMap">
+        select date_format(c.create_time, '%Y-%m-%d') as date,
+               concat(c.customer_name, if(c.estate is null or c.estate = '', '', concat('（', c.estate, '）'))) as customer,
+               ifnull(dt.dict_label, ifnull(c.source, '未知')) as source
+        from crm_customer c
+        left join sys_dict_data dt on dt.dict_type = 'crm_customer_source' and dt.dict_value = c.source
+        where c.create_time &gt;= concat(#{beginTime}, ' 00:00:00')
+          and c.create_time &lt;= concat(#{endTime}, ' 23:59:59')
+        order by c.create_time
+    </select>
+
+    <!-- 到访明细（区间内，按日期） -->
+    <select id="selectVisitDetails" resultType="java.util.HashMap">
+        select date_format(r.follow_time, '%Y-%m-%d') as date,
+               concat(c.customer_name, if(c.estate is null or c.estate = '', '', concat('（', c.estate, '）'))) as customer,
+               r.visit_count as visitCount,
+               ifnull(dt.dict_label, ifnull(r.visit_purpose, '')) as purpose
+        from crm_follow_record r
+        inner join crm_customer c on c.customer_id = r.customer_id
+        left join sys_dict_data dt on dt.dict_type = 'crm_visit_purpose' and dt.dict_value = r.visit_purpose
+        where r.follow_type = '3'
+          and r.follow_time &gt;= concat(#{beginTime}, ' 00:00:00')
+          and r.follow_time &lt;= concat(#{endTime}, ' 23:59:59')
+        order by r.follow_time
+    </select>
+
+    <!-- 报价明细（区间内，按日期） -->
+    <select id="selectQuoteDetails" resultType="java.util.HashMap">
+        select date_format(q.create_time, '%Y-%m-%d') as date,
+               concat(c.customer_name, if(c.estate is null or c.estate = '', '', concat('（', c.estate, '）'))) as customer,
+               q.final_amount as amount
+        from biz_quote q
+        inner join crm_customer c on c.customer_id = q.customer_id
+        where q.create_time &gt;= concat(#{beginTime}, ' 00:00:00')
+          and q.create_time &lt;= concat(#{endTime}, ' 23:59:59')
+        order by q.create_time
+    </select>
+
+    <!-- 定金明细（区间内，按日期） -->
+    <select id="selectDepositDetails" resultType="java.util.HashMap">
+        select date_format(d.pay_time, '%Y-%m-%d') as date,
+               concat(c.customer_name, if(c.estate is null or c.estate = '', '', concat('（', c.estate, '）'))) as customer,
+               d.amount,
+               ifnull(dt.dict_label, d.status) as statusLabel
+        from biz_deposit d
+        inner join crm_customer c on c.customer_id = d.customer_id
+        left join sys_dict_data dt on dt.dict_type = 'biz_deposit_status' and dt.dict_value = d.status
+        where d.pay_time &gt;= concat(#{beginTime}, ' 00:00:00')
+          and d.pay_time &lt;= concat(#{endTime}, ' 23:59:59')
+        order by d.pay_time
+    </select>
+
+    <!-- 签约明细（区间内，按日期，设计师通过工地表关联） -->
+    <select id="selectSignDetails" resultType="java.util.HashMap">
+        select date_format(ct.sign_date, '%Y-%m-%d') as date,
+               concat(c.customer_name, if(c.estate is null or c.estate = '', '', concat('（', c.estate, '）'))) as customer,
+               ct.contract_amount as amount,
+               (select s.designer_name from biz_site s where s.customer_id = ct.customer_id limit 1) as designer
+        from biz_contract ct
+        inner join crm_customer c on c.customer_id = ct.customer_id
+        where ct.status in ('2', '3', '4')
+          and ct.sign_date &gt;= #{beginTime} and ct.sign_date &lt;= #{endTime}
+        order by ct.sign_date
+    </select>
+
+    <!-- 收款明细（区间内，按日期） -->
+    <select id="selectPaymentDetails" resultType="java.util.HashMap">
+        select date_format(p.pay_time, '%Y-%m-%d') as date,
+               concat(c.customer_name, if(c.estate is null or c.estate = '', '', concat('（', c.estate, '）'))) as customer,
+               p.amount
+        from biz_payment_record p
+        inner join biz_contract ct on ct.contract_id = p.contract_id
+        inner join crm_customer c on c.customer_id = ct.customer_id
+        where p.pay_time &gt;= concat(#{beginTime}, ' 00:00:00')
+          and p.pay_time &lt;= concat(#{endTime}, ' 23:59:59')
+        order by p.pay_time
+    </select>
+
+    <!-- ============= 人员多维度对比统计 ============= -->
+
+    <!-- 设计师多维度统计（签约金额/数量通过工地关联合同 + 在建/已完工工地 + 图纸产出） -->
+    <select id="selectDesignerStats" resultType="java.util.HashMap">
+        select d.designer_name as designer,
+               ifnull(sign.cnt, 0) as signCount,
+               ifnull(sign.amount, 0) as signAmount,
+               ifnull(runningSite.cnt, 0) as runningSiteCount,
+               ifnull(doneSite.cnt, 0) as doneSiteCount,
+               ifnull(drawing.cnt, 0) as drawingCount
+        from (
+            select distinct designer_name from biz_site
+            where designer_name is not null and designer_name != ''
+        ) d
+        left join (
+            select s.designer_name, count(1) as cnt, ifnull(sum(ct.contract_amount), 0) as amount
+            from biz_contract ct
+            inner join biz_site s on s.customer_id = ct.customer_id
+            where ct.status in ('2','3','4')
+              and ct.sign_date &gt;= #{beginTime} and ct.sign_date &lt;= #{endTime}
+            group by s.designer_name
+        ) sign on sign.designer_name = d.designer_name
+        left join (
+            select designer_name, count(1) as cnt
+            from biz_site where status = '1' group by designer_name
+        ) runningSite on runningSite.designer_name = d.designer_name
+        left join (
+            select designer_name, count(1) as cnt
+            from biz_site where status = '2' group by designer_name
+        ) doneSite on doneSite.designer_name = d.designer_name
+        left join (
+            select s.designer_name, count(1) as cnt
+            from biz_drawing dr
+            inner join biz_site s on s.customer_id = dr.customer_id
+            where dr.is_current = '1'
+              and dr.create_time &gt;= concat(#{beginTime}, ' 00:00:00')
+              and dr.create_time &lt;= concat(#{endTime}, ' 23:59:59')
+            group by s.designer_name
+        ) drawing on drawing.designer_name = d.designer_name
+        order by ifnull(sign.amount, 0) desc
+    </select>
+
+    <!-- 业务员多维度统计（新增客户 + 签约金额/数量 + 到访 + 报价） -->
+    <select id="selectSalesmanStats" resultType="java.util.HashMap">
+        select t.salesman,
+               ifnull(cust.cnt, 0) as customerCount,
+               ifnull(sign.cnt, 0) as signCount,
+               ifnull(sign.amount, 0) as signAmount,
+               ifnull(visit.cnt, 0) as visitCount,
+               ifnull(quote.cnt, 0) as quoteCount
+        from (
+            select distinct owner_name as salesman
+            from crm_customer
+            where owner_name is not null and owner_name != ''
+              and create_time &gt;= concat(#{beginTime}, ' 00:00:00')
+              and create_time &lt;= concat(#{endTime}, ' 23:59:59')
+        ) t
+        left join (
+            select c.owner_name as salesman, count(1) as cnt
+            from crm_customer c
+            where c.create_time &gt;= concat(#{beginTime}, ' 00:00:00')
+              and c.create_time &lt;= concat(#{endTime}, ' 23:59:59')
+            group by c.owner_name
+        ) cust on cust.salesman = t.salesman
+        left join (
+            select c.owner_name as salesman, count(1) as cnt, ifnull(sum(ct.contract_amount), 0) as amount
+            from biz_contract ct
+            inner join crm_customer c on c.customer_id = ct.customer_id
+            where ct.status in ('2','3','4')
+              and ct.sign_date &gt;= #{beginTime} and ct.sign_date &lt;= #{endTime}
+            group by c.owner_name
+        ) sign on sign.salesman = t.salesman
+        left join (
+            select c.owner_name as salesman, count(1) as cnt
+            from crm_follow_record r
+            inner join crm_customer c on c.customer_id = r.customer_id
+            where r.follow_type = '3'
+              and r.follow_time &gt;= concat(#{beginTime}, ' 00:00:00')
+              and r.follow_time &lt;= concat(#{endTime}, ' 23:59:59')
+            group by c.owner_name
+        ) visit on visit.salesman = t.salesman
+        left join (
+            select c.owner_name as salesman, count(1) as cnt
+            from biz_quote q
+            inner join crm_customer c on c.customer_id = q.customer_id
+            where q.create_time &gt;= concat(#{beginTime}, ' 00:00:00')
+              and q.create_time &lt;= concat(#{endTime}, ' 23:59:59')
+            group by c.owner_name
+        ) quote on quote.salesman = t.salesman
+        order by ifnull(sign.amount, 0) desc
+    </select>
+</mapper>

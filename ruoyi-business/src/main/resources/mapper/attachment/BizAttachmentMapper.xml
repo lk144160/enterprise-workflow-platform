@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.attachment.mapper.BizAttachmentMapper">
+
+    <resultMap type="BizAttachment" id="BizAttachmentResult">
+        <result property="attachmentId"  column="attachment_id"  />
+        <result property="bizType"       column="biz_type"       />
+        <result property="bizId"         column="biz_id"         />
+        <result property="fileUrl"       column="file_url"       />
+        <result property="fileName"      column="file_name"      />
+        <result property="fileSize"      column="file_size"      />
+        <result property="uploadUserId"  column="upload_user_id" />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+    </resultMap>
+
+    <select id="selectAttachmentList" parameterType="BizAttachment" resultMap="BizAttachmentResult">
+        select attachment_id, biz_type, biz_id, file_url, file_name, file_size, upload_user_id, create_by, create_time
+        from biz_attachment
+        <where>
+            <if test="bizType != null and bizType != ''">AND biz_type = #{bizType}</if>
+            <if test="bizId != null">AND biz_id = #{bizId}</if>
+        </where>
+        order by attachment_id desc
+    </select>
+
+    <select id="selectAttachmentById" parameterType="Long" resultMap="BizAttachmentResult">
+        select attachment_id, biz_type, biz_id, file_url, file_name, file_size, upload_user_id, create_by, create_time
+        from biz_attachment where attachment_id = #{attachmentId}
+    </select>
+
+    <insert id="insertAttachment" parameterType="BizAttachment" useGeneratedKeys="true" keyProperty="attachmentId">
+        insert into biz_attachment (biz_type, biz_id, file_url, file_name, file_size, upload_user_id, create_by, create_time)
+        values (#{bizType}, #{bizId}, #{fileUrl}, #{fileName}, #{fileSize}, #{uploadUserId}, #{createBy}, sysdate())
+    </insert>
+
+    <delete id="deleteAttachmentById" parameterType="Long">
+        delete from biz_attachment where attachment_id = #{attachmentId}
+    </delete>
+
+    <select id="countByBiz" resultType="int">
+        select count(1) from biz_attachment where biz_type = #{param1} and biz_id = #{param2}
+    </select>
+
+    <delete id="deleteByBiz">
+        delete from biz_attachment where biz_type = #{param1} and biz_id = #{param2}
+    </delete>
+</mapper>

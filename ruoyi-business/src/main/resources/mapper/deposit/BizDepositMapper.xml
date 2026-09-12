@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.deposit.mapper.BizDepositMapper">
+
+    <resultMap type="BizDeposit" id="BizDepositResult">
+        <id     property="depositId"     column="deposit_id"     />
+        <result property="depositNo"     column="deposit_no"     />
+        <result property="customerId"    column="customer_id"    />
+        <result property="quoteId"       column="quote_id"       />
+        <result property="contractId"    column="contract_id"    />
+        <result property="amount"        column="amount"         />
+        <result property="payType"       column="pay_type"       />
+        <result property="payTime"       column="pay_time"       />
+        <result property="voucherUrl"    column="voucher_url"    />
+        <result property="status"        column="status"         />
+        <result property="refundTime"    column="refund_time"    />
+        <result property="refundReason"  column="refund_reason"  />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"      column="update_by"      />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"        column="remark"         />
+        <result property="customerName"  column="customer_name"  />
+        <result property="customerPhone" column="customer_phone" />
+        <result property="estate"        column="estate"         />
+        <result property="quoteNo"       column="quote_no"       />
+        <result property="contractNo"    column="contract_no"    />
+    </resultMap>
+
+    <sql id="selectBizDepositVo">
+        select d.deposit_id, d.deposit_no, d.customer_id, d.quote_id, d.contract_id, d.amount,
+               d.pay_type, d.pay_time, d.voucher_url, d.status, d.refund_time, d.refund_reason,
+               d.create_by, d.create_time, d.update_by, d.update_time, d.remark,
+               c.customer_name, c.phone as customer_phone, c.estate,
+               q.quote_no, ct.contract_no
+        from biz_deposit d
+        left join crm_customer c on c.customer_id = d.customer_id
+        left join biz_quote q on q.quote_id = d.quote_id
+        left join biz_contract ct on ct.contract_id = d.contract_id
+    </sql>
+
+    <select id="selectBizDepositById" parameterType="Long" resultMap="BizDepositResult">
+        <include refid="selectBizDepositVo"/>
+        where d.deposit_id = #{depositId}
+    </select>
+
+    <select id="selectBizDepositList" parameterType="BizDeposit" resultMap="BizDepositResult">
+        <include refid="selectBizDepositVo"/>
+        <where>
+            <if test="depositNo != null and depositNo != ''">
+                and d.deposit_no like concat('%', #{depositNo}, '%')
+            </if>
+            <if test="customerId != null ">
+                and d.customer_id = #{customerId}
+            </if>
+            <if test="status != null and status != ''">
+                and d.status = #{status}
+            </if>
+            <if test="payType != null and payType != ''">
+                and d.pay_type = #{payType}
+            </if>
+            <if test="params.beginPayTime != null and params.beginPayTime != ''">
+                and date(d.pay_time) &gt;= #{params.beginPayTime}
+            </if>
+            <if test="params.endPayTime != null and params.endPayTime != ''">
+                and date(d.pay_time) &lt;= #{params.endPayTime}
+            </if>
+            <if test="customerName != null and customerName != ''">
+                and c.customer_name like concat('%', #{customerName}, '%')
+            </if>
+        </where>
+        order by d.create_time desc
+    </select>
+
+    <select id="selectReceivedSumByCustomer" parameterType="Long" resultType="BigDecimal">
+        select ifnull(sum(amount), 0) from biz_deposit
+        where customer_id = #{customerId} and status = '0'
+    </select>
+
+    <insert id="insertBizDeposit" parameterType="BizDeposit" useGeneratedKeys="true" keyProperty="depositId">
+        insert into biz_deposit
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="depositNo != null and depositNo != ''">deposit_no,</if>
+            <if test="customerId != null">customer_id,</if>
+            <if test="quoteId != null">quote_id,</if>
+            <if test="contractId != null">contract_id,</if>
+            <if test="amount != null">amount,</if>
+            <if test="payType != null">pay_type,</if>
+            <if test="payTime != null">pay_time,</if>
+            <if test="voucherUrl != null and voucherUrl != ''">voucher_url,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="refundTime != null">refund_time,</if>
+            <if test="refundReason != null">refund_reason,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="remark != null">remark,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="depositNo != null and depositNo != ''">#{depositNo},</if>
+            <if test="customerId != null">#{customerId},</if>
+            <if test="quoteId != null">#{quoteId},</if>
+            <if test="contractId != null">#{contractId},</if>
+            <if test="amount != null">#{amount},</if>
+            <if test="payType != null">#{payType},</if>
+            <if test="payTime != null">#{payTime},</if>
+            <if test="voucherUrl != null and voucherUrl != ''">#{voucherUrl},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="refundTime != null">#{refundTime},</if>
+            <if test="refundReason != null">#{refundReason},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="remark != null">#{remark},</if>
+            sysdate()
+        </trim>
+    </insert>
+
+    <update id="updateBizDeposit" parameterType="BizDeposit">
+        update biz_deposit
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="depositNo != null and depositNo != ''">deposit_no = #{depositNo},</if>
+            <if test="customerId != null">customer_id = #{customerId},</if>
+            <if test="quoteId != null">quote_id = #{quoteId},</if>
+            contract_id = #{contractId},
+            <if test="amount != null">amount = #{amount},</if>
+            <if test="payType != null">pay_type = #{payType},</if>
+            <if test="payTime != null">pay_time = #{payTime},</if>
+            <if test="voucherUrl != null">voucher_url = #{voucherUrl},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            refund_time = #{refundTime},
+            <if test="refundReason != null">refund_reason = #{refundReason},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_time = sysdate()
+        </trim>
+        where deposit_id = #{depositId}
+    </update>
+
+    <delete id="deleteBizDepositById" parameterType="Long">
+        delete from biz_deposit where deposit_id = #{depositId}
+    </delete>
+
+    <delete id="deleteBizDepositByIds" parameterType="String">
+        delete from biz_deposit where deposit_id in
+        <foreach collection="array" item="depositId" open="(" separator="," close=")">
+            #{depositId}
+        </foreach>
+    </delete>
+</mapper>

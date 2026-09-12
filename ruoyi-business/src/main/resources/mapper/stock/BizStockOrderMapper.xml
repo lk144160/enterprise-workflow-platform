@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.stock.mapper.BizStockOrderMapper">
+
+    <resultMap type="BizStockOrder" id="BizStockOrderResult">
+        <result property="orderId"      column="order_id"      />
+        <result property="orderNo"      column="order_no"      />
+        <result property="orderType"    column="order_type"    />
+        <result property="sourceType"   column="source_type"   />
+        <result property="contractId"   column="contract_id"   />
+        <result property="applicantId"  column="applicant_id"  />
+        <result property="handlerId"    column="handler_id"    />
+        <result property="totalAmount"  column="total_amount"  />
+        <result property="status"       column="status"        />
+        <result property="applyTime"    column="apply_time"    />
+        <result property="completeTime" column="complete_time" />
+        <result property="deptId"       column="dept_id"       />
+        <result property="createBy"     column="create_by"     />
+        <result property="createTime"   column="create_time"   />
+        <result property="updateBy"     column="update_by"     />
+        <result property="updateTime"   column="update_time"   />
+        <result property="remark"       column="remark"        />
+        <result property="contractNo"   column="contract_no"   />
+        <result property="customerName" column="customer_name" />
+        <result property="applicantName" column="applicant_name" />
+        <result property="handlerName"  column="handler_name"  />
+    </resultMap>
+
+    <sql id="selectVo">
+        select o.order_id, o.order_no, o.order_type, o.source_type, o.contract_id, o.applicant_id, o.handler_id,
+               o.total_amount, o.status, o.apply_time, o.complete_time, o.dept_id,
+               o.create_by, o.create_time, o.update_by, o.update_time, o.remark,
+               ct.contract_no, c.customer_name, au.nick_name as applicant_name, hu.nick_name as handler_name
+        from biz_stock_order o
+        left join biz_contract ct on ct.contract_id = o.contract_id
+        left join crm_customer c on c.customer_id = ct.customer_id
+        left join sys_user au on au.user_id = o.applicant_id
+        left join sys_user hu on hu.user_id = o.handler_id
+    </sql>
+
+    <select id="selectBizStockOrderById" parameterType="Long" resultMap="BizStockOrderResult">
+        <include refid="selectVo"/>
+        where o.order_id = #{orderId}
+    </select>
+
+    <select id="selectBizStockOrderList" parameterType="BizStockOrder" resultMap="BizStockOrderResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="orderNo != null and orderNo != ''">AND o.order_no like concat('%', #{orderNo}, '%')</if>
+            <if test="orderType != null and orderType != ''">AND o.order_type = #{orderType}</if>
+            <if test="sourceType != null and sourceType != ''">AND o.source_type = #{sourceType}</if>
+            <if test="contractId != null">AND o.contract_id = #{contractId}</if>
+            <if test="contractNo != null and contractNo != ''">AND ct.contract_no like concat('%', #{contractNo}, '%')</if>
+            <if test="customerName != null and customerName != ''">AND c.customer_name like concat('%', #{customerName}, '%')</if>
+            <if test="applicantId != null">AND o.applicant_id = #{applicantId}</if>
+            <if test="status != null and status != ''">AND o.status = #{status}</if>
+        </where>
+        order by o.order_id desc
+    </select>
+
+    <insert id="insertBizStockOrder" parameterType="BizStockOrder" useGeneratedKeys="true" keyProperty="orderId">
+        insert into biz_stock_order (order_no, order_type, source_type, contract_id, applicant_id, handler_id,
+            total_amount, status, apply_time, dept_id, create_by, create_time, remark)
+        values (#{orderNo}, #{orderType}, #{sourceType}, #{contractId}, #{applicantId}, #{handlerId},
+            #{totalAmount}, #{status}, #{applyTime}, #{deptId}, #{createBy}, sysdate(), #{remark})
+    </insert>
+
+    <update id="updateBizStockOrder" parameterType="BizStockOrder">
+        update biz_stock_order
+        <set>
+            <if test="handlerId != null">handler_id = #{handlerId},</if>
+            <if test="totalAmount != null">total_amount = #{totalAmount},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="completeTime != null">complete_time = #{completeTime},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where order_id = #{orderId}
+    </update>
+
+    <delete id="deleteBizStockOrderByIds" parameterType="Long">
+        delete from biz_stock_order where order_id in
+        <foreach item="orderId" collection="array" open="(" separator="," close=")">
+            #{orderId}
+        </foreach>
+    </delete>
+</mapper>

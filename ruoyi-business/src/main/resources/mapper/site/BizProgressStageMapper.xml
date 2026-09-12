@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.business.site.mapper.BizProgressStageMapper">
+
+    <resultMap type="BizProgressStage" id="BizProgressStageResult">
+        <result property="stageId"         column="stage_id"          />
+        <result property="siteId"          column="site_id"           />
+        <result property="stageType"        column="stage_type"        />
+        <result property="stageName"        column="stage_name"        />
+        <result property="sortOrder"       column="sort_order"        />
+        <result property="planStartDate"   column="plan_start_date"   />
+        <result property="planEndDate"     column="plan_end_date"     />
+        <result property="actualStartDate" column="actual_start_date" />
+        <result property="actualEndDate"   column="actual_end_date"   />
+        <result property="status"          column="status"            />
+        <result property="createBy"        column="create_by"         />
+        <result property="createTime"      column="create_time"       />
+        <result property="updateBy"        column="update_by"         />
+        <result property="updateTime"      column="update_time"       />
+        <result property="remark"          column="remark"            />
+        <result property="lateFlag"        column="late_flag"         />
+    </resultMap>
+
+    <sql id="selectVo">
+        select stage_id, site_id, stage_type, stage_name, sort_order, plan_start_date, plan_end_date,
+               actual_start_date, actual_end_date, status, create_by, create_time,
+               update_by, update_time, remark,
+               case when status in ('0', '1') and plan_end_date &lt; curdate() then 1 else 0 end as late_flag
+        from biz_progress_stage
+    </sql>
+
+    <select id="selectStagesBySiteId" parameterType="Long" resultMap="BizProgressStageResult">
+        <include refid="selectVo"/>
+        where site_id = #{siteId}
+        order by sort_order
+    </select>
+
+    <select id="selectBizProgressStageById" parameterType="Long" resultMap="BizProgressStageResult">
+        <include refid="selectVo"/>
+        where stage_id = #{stageId}
+    </select>
+
+    <insert id="insertBizProgressStage" parameterType="BizProgressStage" useGeneratedKeys="true" keyProperty="stageId">
+        insert into biz_progress_stage (site_id, stage_type, stage_name, sort_order, plan_start_date, plan_end_date,
+            status, create_by, create_time, remark)
+        values (#{siteId}, #{stageType}, #{stageName}, #{sortOrder}, #{planStartDate}, #{planEndDate},
+            #{status}, #{createBy}, sysdate(), #{remark})
+    </insert>
+
+    <update id="updateBizProgressStage" parameterType="BizProgressStage">
+        update biz_progress_stage
+        <set>
+            <if test="stageName != null and stageName != ''">stage_name = #{stageName},</if>
+            <if test="planStartDate != null">plan_start_date = #{planStartDate},</if>
+            <if test="planEndDate != null">plan_end_date = #{planEndDate},</if>
+            <if test="actualStartDate != null">actual_start_date = #{actualStartDate},</if>
+            <if test="actualEndDate != null">actual_end_date = #{actualEndDate},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where stage_id = #{stageId}
+    </update>
+
+    <delete id="deleteStagesBySiteIds">
+        delete from biz_progress_stage where site_id in
+        <foreach item="siteId" collection="siteIds" open="(" separator="," close=")">
+            #{siteId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteBizProgressStageById" parameterType="Long">
+        delete from biz_progress_stage where stage_id = #{stageId}
+    </delete>
+
+    <!-- 插入步骤前，将指定顺序号及之后的步骤整体后移一位 -->
+    <update id="bumpSortOrderFrom">
+        update biz_progress_stage set sort_order = sort_order + 1
+        where site_id = #{siteId} and sort_order &gt;= #{fromOrder}
+    </update>
+
+    <delete id="deleteStageAttachmentByStageId" parameterType="Long">
+        delete from biz_attachment where biz_type = 'site_stage' and biz_id = #{stageId}
+    </delete>
+
+    <select id="selectStageAttachments" resultMap="com.ruoyi.business.attachment.mapper.BizAttachmentMapper.BizAttachmentResult">
+        select a.attachment_id, a.biz_type, a.biz_id, a.file_url, a.file_name, a.file_size,
+               a.upload_user_id, a.create_by, a.create_time
+        from biz_attachment a
+        where a.biz_type = 'site_stage'
+        and a.biz_id in
+        <foreach item="stageId" collection="stageIds" open="(" separator="," close=")">
+            #{stageId}
+        </foreach>
+        order by a.attachment_id
+    </select>
+
+    <delete id="deleteStageAttachments">
+        delete from biz_attachment
+        where biz_type = 'site_stage'
+        and biz_id in (
+            select stage_id from biz_progress_stage where site_id in
+            <foreach item="siteId" collection="siteIds" open="(" separator="," close=")">
+                #{siteId}
+            </foreach>
+        )
+    </delete>
+</mapper>
